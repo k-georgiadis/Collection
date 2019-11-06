@@ -7,5 +7,5 @@ The module connects through Wi-Fi to the local network and from there it can be 
 
 This demonstrates the possibilities of remote accessing an automated system, for example:
 
-	1) Controlling house apliances (lights, oven, water heater, boiler, garage door, etc.)
-	2) Monitoring/Controlling the sensor data (temperature, humidity, etc.) in industrial enviroments 	   	   (refridgerators, ventilation system, greenhouses, etc.)
+1) Controlling house apliances (lights, oven, water heater, boiler, garage door, etc.)
+2) Monitoring/Controlling the sensor data (temperature, humidity, etc.) in industrial enviroments (refridgerators, ventilation system, greenhouses, etc.)
