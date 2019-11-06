@@ -15,36 +15,7 @@
 		<!-- <meta http-equiv="refresh" content="2" > -->
 		<hr>
 		<hr>
-		<div id="status">
-</html>
-
-<?php
-	//Make GET request using CURL, for Temperature value.
-	// $url = 'http://' . $_SESSION['IP'] . '/?TEMP=1';
-
-	// $ch = curl_init();
-	// $timeout = 10;
-	
-	// curl_setopt($ch, CURLOPT_URL, $url);
-	// curl_setopt($ch, CURLOPT_MAXCONNECTS, 1);
-	// curl_setopt($ch, CURLOPT_CRLF, 1);
-	// curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
-	// curl_setopt($ch, CURLOPT_TIMEOUT, $timeout);
-	// curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, $timeout);
-
-	// $response = curl_exec($ch);
-	// curl_close($ch);
-	
-	// if($response == FALSE) //If GET failed.
-	// {
-		// echo 'Failed to connect to ESP server.';
-		// exit(1);
-	// }
-	// else
-		// echo 'Successfully connected to ESP Server.';
-?>
-<html>
-	</div>
+		<div id="status"></div>
 	<hr>
 	
 	<br>
@@ -52,11 +23,6 @@
 	
 	<div id="tempLabel"></div>
 	<div id="tempVal"></div><sup id="sp"></sup><p id="celcius"></p>
-	
-	<?php
-		//$response = floatval($response); //Convert Temperature value string to float.
-		//$response = number_format($response, 1); //Format number. This is only needed when the value is integer i.e: 25.0;
-	?>
-	
+
 	</body>
 </html>
