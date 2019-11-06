@@ -10,4 +10,3 @@ The time can be displayed in several ways:
 H = hours
 M = minutes
 S = seconds
-
