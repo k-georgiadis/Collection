@@ -7,7 +7,6 @@ The time can be displayed in several ways:
 2) MM.SS
 3) HH.SS (why though?)
 
-H = hours
-M = minutes
+H = hours,
+M = minutes,
 S = seconds
-
