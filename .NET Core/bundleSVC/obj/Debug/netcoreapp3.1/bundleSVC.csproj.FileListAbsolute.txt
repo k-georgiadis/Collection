@@ -1,0 +1,115 @@
+C:\users\CosmaOne\My Documents\Visual Studio 2019\Projects\bundleSVC\bundleSVC\bin\Debug\netcoreapp3.1\appsettings.Development.json
+C:\users\CosmaOne\My Documents\Visual Studio 2019\Projects\bundleSVC\bundleSVC\bin\Debug\netcoreapp3.1\appsettings.json
+C:\users\CosmaOne\My Documents\Visual Studio 2019\Projects\bundleSVC\bundleSVC\bin\Debug\netcoreapp3.1\Properties\launchSettings.json
+C:\users\CosmaOne\My Documents\Visual Studio 2019\Projects\bundleSVC\bundleSVC\bin\Debug\netcoreapp3.1\bundleSVC.exe
+C:\users\CosmaOne\My Documents\Visual Studio 2019\Projects\bundleSVC\bundleSVC\bin\Debug\netcoreapp3.1\bundleSVC.deps.json
+C:\users\CosmaOne\My Documents\Visual Studio 2019\Projects\bundleSVC\bundleSVC\bin\Debug\netcoreapp3.1\bundleSVC.runtimeconfig.json
+C:\users\CosmaOne\My Documents\Visual Studio 2019\Projects\bundleSVC\bundleSVC\bin\Debug\netcoreapp3.1\bundleSVC.runtimeconfig.dev.json
+C:\users\CosmaOne\My Documents\Visual Studio 2019\Projects\bundleSVC\bundleSVC\bin\Debug\netcoreapp3.1\bundleSVC.dll
+C:\users\CosmaOne\My Documents\Visual Studio 2019\Projects\bundleSVC\bundleSVC\bin\Debug\netcoreapp3.1\bundleSVC.pdb
+C:\users\CosmaOne\My Documents\Visual Studio 2019\Projects\bundleSVC\bundleSVC\bin\Debug\netcoreapp3.1\Microsoft.Bcl.AsyncInterfaces.dll
+C:\users\CosmaOne\My Documents\Visual Studio 2019\Projects\bundleSVC\bundleSVC\bin\Debug\netcoreapp3.1\Microsoft.Bcl.HashCode.dll
+C:\users\CosmaOne\My Documents\Visual Studio 2019\Projects\bundleSVC\bundleSVC\bin\Debug\netcoreapp3.1\Microsoft.Data.Sqlite.dll
+C:\users\CosmaOne\My Documents\Visual Studio 2019\Projects\bundleSVC\bundleSVC\bin\Debug\netcoreapp3.1\Microsoft.DotNet.PlatformAbstractions.dll
+C:\users\CosmaOne\My Documents\Visual Studio 2019\Projects\bundleSVC\bundleSVC\bin\Debug\netcoreapp3.1\Microsoft.EntityFrameworkCore.dll
+C:\users\CosmaOne\My Documents\Visual Studio 2019\Projects\bundleSVC\bundleSVC\bin\Debug\netcoreapp3.1\Microsoft.EntityFrameworkCore.Abstractions.dll
+C:\users\CosmaOne\My Documents\Visual Studio 2019\Projects\bundleSVC\bundleSVC\bin\Debug\netcoreapp3.1\Microsoft.EntityFrameworkCore.Design.dll
+C:\users\CosmaOne\My Documents\Visual Studio 2019\Projects\bundleSVC\bundleSVC\bin\Debug\netcoreapp3.1\Microsoft.EntityFrameworkCore.Relational.dll
+C:\users\CosmaOne\My Documents\Visual Studio 2019\Projects\bundleSVC\bundleSVC\bin\Debug\netcoreapp3.1\Microsoft.EntityFrameworkCore.Sqlite.dll
+C:\users\CosmaOne\My Documents\Visual Studio 2019\Projects\bundleSVC\bundleSVC\bin\Debug\netcoreapp3.1\Microsoft.Extensions.Caching.Abstractions.dll
+C:\users\CosmaOne\My Documents\Visual Studio 2019\Projects\bundleSVC\bundleSVC\bin\Debug\netcoreapp3.1\Microsoft.Extensions.Caching.Memory.dll
+C:\users\CosmaOne\My Documents\Visual Studio 2019\Projects\bundleSVC\bundleSVC\bin\Debug\netcoreapp3.1\Microsoft.Extensions.Configuration.dll
+C:\users\CosmaOne\My Documents\Visual Studio 2019\Projects\bundleSVC\bundleSVC\bin\Debug\netcoreapp3.1\Microsoft.Extensions.Configuration.Abstractions.dll
+C:\users\CosmaOne\My Documents\Visual Studio 2019\Projects\bundleSVC\bundleSVC\bin\Debug\netcoreapp3.1\Microsoft.Extensions.Configuration.Binder.dll
+C:\users\CosmaOne\My Documents\Visual Studio 2019\Projects\bundleSVC\bundleSVC\bin\Debug\netcoreapp3.1\Microsoft.Extensions.DependencyInjection.dll
+C:\users\CosmaOne\My Documents\Visual Studio 2019\Projects\bundleSVC\bundleSVC\bin\Debug\netcoreapp3.1\Microsoft.Extensions.DependencyInjection.Abstractions.dll
+C:\users\CosmaOne\My Documents\Visual Studio 2019\Projects\bundleSVC\bundleSVC\bin\Debug\netcoreapp3.1\Microsoft.Extensions.DependencyModel.dll
+C:\users\CosmaOne\My Documents\Visual Studio 2019\Projects\bundleSVC\bundleSVC\bin\Debug\netcoreapp3.1\Microsoft.Extensions.Logging.dll
+C:\users\CosmaOne\My Documents\Visual Studio 2019\Projects\bundleSVC\bundleSVC\bin\Debug\netcoreapp3.1\Microsoft.Extensions.Logging.Abstractions.dll
+C:\users\CosmaOne\My Documents\Visual Studio 2019\Projects\bundleSVC\bundleSVC\bin\Debug\netcoreapp3.1\Microsoft.Extensions.Options.dll
+C:\users\CosmaOne\My Documents\Visual Studio 2019\Projects\bundleSVC\bundleSVC\bin\Debug\netcoreapp3.1\Microsoft.Extensions.Primitives.dll
+C:\users\CosmaOne\My Documents\Visual Studio 2019\Projects\bundleSVC\bundleSVC\bin\Debug\netcoreapp3.1\SQLitePCLRaw.core.dll
+C:\users\CosmaOne\My Documents\Visual Studio 2019\Projects\bundleSVC\bundleSVC\bin\Debug\netcoreapp3.1\System.Collections.Immutable.dll
+C:\users\CosmaOne\My Documents\Visual Studio 2019\Projects\bundleSVC\bundleSVC\bin\Debug\netcoreapp3.1\System.Diagnostics.DiagnosticSource.dll
+C:\users\CosmaOne\My Documents\Visual Studio 2019\Projects\bundleSVC\bundleSVC\bin\Debug\netcoreapp3.1\System.Text.Json.dll
+C:\users\CosmaOne\My Documents\Visual Studio 2019\Projects\bundleSVC\bundleSVC\obj\Debug\netcoreapp3.1\bundleSVC.csprojAssemblyReference.cache
+C:\users\CosmaOne\My Documents\Visual Studio 2019\Projects\bundleSVC\bundleSVC\obj\Debug\netcoreapp3.1\staticwebassets\bundleSVC.StaticWebAssets.Manifest.cache
+C:\users\CosmaOne\My Documents\Visual Studio 2019\Projects\bundleSVC\bundleSVC\obj\Debug\netcoreapp3.1\staticwebassets\bundleSVC.StaticWebAssets.xml
+C:\users\CosmaOne\My Documents\Visual Studio 2019\Projects\bundleSVC\bundleSVC\obj\Debug\netcoreapp3.1\bundleSVC.MvcApplicationPartsAssemblyInfo.cache
+C:\users\CosmaOne\My Documents\Visual Studio 2019\Projects\bundleSVC\bundleSVC\obj\Debug\netcoreapp3.1\bundleSVC.AssemblyInfoInputs.cache
+C:\users\CosmaOne\My Documents\Visual Studio 2019\Projects\bundleSVC\bundleSVC\obj\Debug\netcoreapp3.1\bundleSVC.AssemblyInfo.cs
+C:\users\CosmaOne\My Documents\Visual Studio 2019\Projects\bundleSVC\bundleSVC\obj\Debug\netcoreapp3.1\bundleSVC.RazorTargetAssemblyInfo.cache
+C:\users\CosmaOne\My Documents\Visual Studio 2019\Projects\bundleSVC\bundleSVC\obj\Debug\netcoreapp3.1\bundleSVC.csproj.CopyComplete
+C:\users\CosmaOne\My Documents\Visual Studio 2019\Projects\bundleSVC\bundleSVC\obj\Debug\netcoreapp3.1\bundleSVC.dll
+C:\users\CosmaOne\My Documents\Visual Studio 2019\Projects\bundleSVC\bundleSVC\obj\Debug\netcoreapp3.1\bundleSVC.pdb
+C:\Users\CosmaOne\Documents\Visual Studio 2019\Projects\bundleSVC\bundleSVC\bin\Debug\netcoreapp3.1\appsettings.Development.json
+C:\Users\CosmaOne\Documents\Visual Studio 2019\Projects\bundleSVC\bundleSVC\bin\Debug\netcoreapp3.1\appsettings.json
+C:\Users\CosmaOne\Documents\Visual Studio 2019\Projects\bundleSVC\bundleSVC\bin\Debug\netcoreapp3.1\Properties\launchSettings.json
+C:\Users\CosmaOne\Documents\Visual Studio 2019\Projects\bundleSVC\bundleSVC\bin\Debug\netcoreapp3.1\bundleSVC.exe
+C:\Users\CosmaOne\Documents\Visual Studio 2019\Projects\bundleSVC\bundleSVC\bin\Debug\netcoreapp3.1\bundleSVC.deps.json
+C:\Users\CosmaOne\Documents\Visual Studio 2019\Projects\bundleSVC\bundleSVC\bin\Debug\netcoreapp3.1\bundleSVC.runtimeconfig.json
+C:\Users\CosmaOne\Documents\Visual Studio 2019\Projects\bundleSVC\bundleSVC\bin\Debug\netcoreapp3.1\bundleSVC.runtimeconfig.dev.json
+C:\Users\CosmaOne\Documents\Visual Studio 2019\Projects\bundleSVC\bundleSVC\bin\Debug\netcoreapp3.1\bundleSVC.dll
+C:\Users\CosmaOne\Documents\Visual Studio 2019\Projects\bundleSVC\bundleSVC\bin\Debug\netcoreapp3.1\bundleSVC.pdb
+C:\Users\CosmaOne\Documents\Visual Studio 2019\Projects\bundleSVC\bundleSVC\bin\Debug\netcoreapp3.1\bundleSVC.xml
+C:\Users\CosmaOne\Documents\Visual Studio 2019\Projects\bundleSVC\bundleSVC\bin\Debug\netcoreapp3.1\AutoMapper.dll
+C:\Users\CosmaOne\Documents\Visual Studio 2019\Projects\bundleSVC\bundleSVC\bin\Debug\netcoreapp3.1\AutoMapper.Extensions.Microsoft.DependencyInjection.dll
+C:\Users\CosmaOne\Documents\Visual Studio 2019\Projects\bundleSVC\bundleSVC\bin\Debug\netcoreapp3.1\Microsoft.AspNetCore.JsonPatch.dll
+C:\Users\CosmaOne\Documents\Visual Studio 2019\Projects\bundleSVC\bundleSVC\bin\Debug\netcoreapp3.1\Microsoft.AspNetCore.Mvc.NewtonsoftJson.dll
+C:\Users\CosmaOne\Documents\Visual Studio 2019\Projects\bundleSVC\bundleSVC\bin\Debug\netcoreapp3.1\Microsoft.Bcl.AsyncInterfaces.dll
+C:\Users\CosmaOne\Documents\Visual Studio 2019\Projects\bundleSVC\bundleSVC\bin\Debug\netcoreapp3.1\Microsoft.Bcl.HashCode.dll
+C:\Users\CosmaOne\Documents\Visual Studio 2019\Projects\bundleSVC\bundleSVC\bin\Debug\netcoreapp3.1\Microsoft.Data.Sqlite.dll
+C:\Users\CosmaOne\Documents\Visual Studio 2019\Projects\bundleSVC\bundleSVC\bin\Debug\netcoreapp3.1\Microsoft.DotNet.PlatformAbstractions.dll
+C:\Users\CosmaOne\Documents\Visual Studio 2019\Projects\bundleSVC\bundleSVC\bin\Debug\netcoreapp3.1\Microsoft.EntityFrameworkCore.dll
+C:\Users\CosmaOne\Documents\Visual Studio 2019\Projects\bundleSVC\bundleSVC\bin\Debug\netcoreapp3.1\Microsoft.EntityFrameworkCore.Abstractions.dll
+C:\Users\CosmaOne\Documents\Visual Studio 2019\Projects\bundleSVC\bundleSVC\bin\Debug\netcoreapp3.1\Microsoft.EntityFrameworkCore.Design.dll
+C:\Users\CosmaOne\Documents\Visual Studio 2019\Projects\bundleSVC\bundleSVC\bin\Debug\netcoreapp3.1\Microsoft.EntityFrameworkCore.Relational.dll
+C:\Users\CosmaOne\Documents\Visual Studio 2019\Projects\bundleSVC\bundleSVC\bin\Debug\netcoreapp3.1\Microsoft.EntityFrameworkCore.Sqlite.dll
+C:\Users\CosmaOne\Documents\Visual Studio 2019\Projects\bundleSVC\bundleSVC\bin\Debug\netcoreapp3.1\Microsoft.Extensions.Caching.Abstractions.dll
+C:\Users\CosmaOne\Documents\Visual Studio 2019\Projects\bundleSVC\bundleSVC\bin\Debug\netcoreapp3.1\Microsoft.Extensions.Caching.Memory.dll
+C:\Users\CosmaOne\Documents\Visual Studio 2019\Projects\bundleSVC\bundleSVC\bin\Debug\netcoreapp3.1\Microsoft.Extensions.Configuration.dll
+C:\Users\CosmaOne\Documents\Visual Studio 2019\Projects\bundleSVC\bundleSVC\bin\Debug\netcoreapp3.1\Microsoft.Extensions.Configuration.Abstractions.dll
+C:\Users\CosmaOne\Documents\Visual Studio 2019\Projects\bundleSVC\bundleSVC\bin\Debug\netcoreapp3.1\Microsoft.Extensions.Configuration.Binder.dll
+C:\Users\CosmaOne\Documents\Visual Studio 2019\Projects\bundleSVC\bundleSVC\bin\Debug\netcoreapp3.1\Microsoft.Extensions.DependencyInjection.dll
+C:\Users\CosmaOne\Documents\Visual Studio 2019\Projects\bundleSVC\bundleSVC\bin\Debug\netcoreapp3.1\Microsoft.Extensions.DependencyInjection.Abstractions.dll
+C:\Users\CosmaOne\Documents\Visual Studio 2019\Projects\bundleSVC\bundleSVC\bin\Debug\netcoreapp3.1\Microsoft.Extensions.DependencyModel.dll
+C:\Users\CosmaOne\Documents\Visual Studio 2019\Projects\bundleSVC\bundleSVC\bin\Debug\netcoreapp3.1\Microsoft.Extensions.Logging.dll
+C:\Users\CosmaOne\Documents\Visual Studio 2019\Projects\bundleSVC\bundleSVC\bin\Debug\netcoreapp3.1\Microsoft.Extensions.Logging.Abstractions.dll
+C:\Users\CosmaOne\Documents\Visual Studio 2019\Projects\bundleSVC\bundleSVC\bin\Debug\netcoreapp3.1\Microsoft.Extensions.Options.dll
+C:\Users\CosmaOne\Documents\Visual Studio 2019\Projects\bundleSVC\bundleSVC\bin\Debug\netcoreapp3.1\Microsoft.Extensions.Primitives.dll
+C:\Users\CosmaOne\Documents\Visual Studio 2019\Projects\bundleSVC\bundleSVC\bin\Debug\netcoreapp3.1\Microsoft.OpenApi.dll
+C:\Users\CosmaOne\Documents\Visual Studio 2019\Projects\bundleSVC\bundleSVC\bin\Debug\netcoreapp3.1\Newtonsoft.Json.dll
+C:\Users\CosmaOne\Documents\Visual Studio 2019\Projects\bundleSVC\bundleSVC\bin\Debug\netcoreapp3.1\Newtonsoft.Json.Bson.dll
+C:\Users\CosmaOne\Documents\Visual Studio 2019\Projects\bundleSVC\bundleSVC\bin\Debug\netcoreapp3.1\SQLitePCLRaw.batteries_v2.dll
+C:\Users\CosmaOne\Documents\Visual Studio 2019\Projects\bundleSVC\bundleSVC\bin\Debug\netcoreapp3.1\SQLitePCLRaw.nativelibrary.dll
+C:\Users\CosmaOne\Documents\Visual Studio 2019\Projects\bundleSVC\bundleSVC\bin\Debug\netcoreapp3.1\SQLitePCLRaw.core.dll
+C:\Users\CosmaOne\Documents\Visual Studio 2019\Projects\bundleSVC\bundleSVC\bin\Debug\netcoreapp3.1\SQLitePCLRaw.provider.dynamic_cdecl.dll
+C:\Users\CosmaOne\Documents\Visual Studio 2019\Projects\bundleSVC\bundleSVC\bin\Debug\netcoreapp3.1\Swashbuckle.AspNetCore.Newtonsoft.dll
+C:\Users\CosmaOne\Documents\Visual Studio 2019\Projects\bundleSVC\bundleSVC\bin\Debug\netcoreapp3.1\Swashbuckle.AspNetCore.Swagger.dll
+C:\Users\CosmaOne\Documents\Visual Studio 2019\Projects\bundleSVC\bundleSVC\bin\Debug\netcoreapp3.1\Swashbuckle.AspNetCore.SwaggerGen.dll
+C:\Users\CosmaOne\Documents\Visual Studio 2019\Projects\bundleSVC\bundleSVC\bin\Debug\netcoreapp3.1\Swashbuckle.AspNetCore.SwaggerUI.dll
+C:\Users\CosmaOne\Documents\Visual Studio 2019\Projects\bundleSVC\bundleSVC\bin\Debug\netcoreapp3.1\System.Collections.Immutable.dll
+C:\Users\CosmaOne\Documents\Visual Studio 2019\Projects\bundleSVC\bundleSVC\bin\Debug\netcoreapp3.1\System.Diagnostics.DiagnosticSource.dll
+C:\Users\CosmaOne\Documents\Visual Studio 2019\Projects\bundleSVC\bundleSVC\bin\Debug\netcoreapp3.1\System.Text.Json.dll
+C:\Users\CosmaOne\Documents\Visual Studio 2019\Projects\bundleSVC\bundleSVC\bin\Debug\netcoreapp3.1\runtimes\alpine-x64\native\libe_sqlite3.so
+C:\Users\CosmaOne\Documents\Visual Studio 2019\Projects\bundleSVC\bundleSVC\bin\Debug\netcoreapp3.1\runtimes\linux-arm\native\libe_sqlite3.so
+C:\Users\CosmaOne\Documents\Visual Studio 2019\Projects\bundleSVC\bundleSVC\bin\Debug\netcoreapp3.1\runtimes\linux-arm64\native\libe_sqlite3.so
+C:\Users\CosmaOne\Documents\Visual Studio 2019\Projects\bundleSVC\bundleSVC\bin\Debug\netcoreapp3.1\runtimes\linux-armel\native\libe_sqlite3.so
+C:\Users\CosmaOne\Documents\Visual Studio 2019\Projects\bundleSVC\bundleSVC\bin\Debug\netcoreapp3.1\runtimes\linux-musl-x64\native\libe_sqlite3.so
+C:\Users\CosmaOne\Documents\Visual Studio 2019\Projects\bundleSVC\bundleSVC\bin\Debug\netcoreapp3.1\runtimes\linux-x64\native\libe_sqlite3.so
+C:\Users\CosmaOne\Documents\Visual Studio 2019\Projects\bundleSVC\bundleSVC\bin\Debug\netcoreapp3.1\runtimes\linux-x86\native\libe_sqlite3.so
+C:\Users\CosmaOne\Documents\Visual Studio 2019\Projects\bundleSVC\bundleSVC\bin\Debug\netcoreapp3.1\runtimes\osx-x64\native\libe_sqlite3.dylib
+C:\Users\CosmaOne\Documents\Visual Studio 2019\Projects\bundleSVC\bundleSVC\bin\Debug\netcoreapp3.1\runtimes\win-arm\native\e_sqlite3.dll
+C:\Users\CosmaOne\Documents\Visual Studio 2019\Projects\bundleSVC\bundleSVC\bin\Debug\netcoreapp3.1\runtimes\win-arm64\native\e_sqlite3.dll
+C:\Users\CosmaOne\Documents\Visual Studio 2019\Projects\bundleSVC\bundleSVC\bin\Debug\netcoreapp3.1\runtimes\win-x64\native\e_sqlite3.dll
+C:\Users\CosmaOne\Documents\Visual Studio 2019\Projects\bundleSVC\bundleSVC\bin\Debug\netcoreapp3.1\runtimes\win-x86\native\e_sqlite3.dll
+C:\Users\CosmaOne\Documents\Visual Studio 2019\Projects\bundleSVC\bundleSVC\obj\Debug\netcoreapp3.1\staticwebassets\bundleSVC.StaticWebAssets.Manifest.cache
+C:\Users\CosmaOne\Documents\Visual Studio 2019\Projects\bundleSVC\bundleSVC\obj\Debug\netcoreapp3.1\staticwebassets\bundleSVC.StaticWebAssets.xml
+C:\Users\CosmaOne\Documents\Visual Studio 2019\Projects\bundleSVC\bundleSVC\obj\Debug\netcoreapp3.1\bundleSVC.MvcApplicationPartsAssemblyInfo.cs
+C:\Users\CosmaOne\Documents\Visual Studio 2019\Projects\bundleSVC\bundleSVC\obj\Debug\netcoreapp3.1\bundleSVC.MvcApplicationPartsAssemblyInfo.cache
+C:\Users\CosmaOne\Documents\Visual Studio 2019\Projects\bundleSVC\bundleSVC\obj\Debug\netcoreapp3.1\bundleSVC.AssemblyInfoInputs.cache
+C:\Users\CosmaOne\Documents\Visual Studio 2019\Projects\bundleSVC\bundleSVC\obj\Debug\netcoreapp3.1\bundleSVC.AssemblyInfo.cs
+C:\Users\CosmaOne\Documents\Visual Studio 2019\Projects\bundleSVC\bundleSVC\obj\Debug\netcoreapp3.1\bundleSVC.RazorTargetAssemblyInfo.cache
+C:\Users\CosmaOne\Documents\Visual Studio 2019\Projects\bundleSVC\bundleSVC\obj\Debug\netcoreapp3.1\bundleSVC.csproj.CopyComplete
+C:\Users\CosmaOne\Documents\Visual Studio 2019\Projects\bundleSVC\bundleSVC\obj\Debug\netcoreapp3.1\bundleSVC.dll
+C:\Users\CosmaOne\Documents\Visual Studio 2019\Projects\bundleSVC\bundleSVC\obj\Debug\netcoreapp3.1\bundleSVC.pdb

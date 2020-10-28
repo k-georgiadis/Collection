@@ -1,0 +1,68 @@
+<?xml version="1.0"?>
+<doc>
+    <assembly>
+        <name>bundleSVC</name>
+    </assembly>
+    <members>
+        <member name="M:bundleSVC.Controllers.BundlesController.GetAllBundles">
+            <summary>
+            Returns all available bundles.
+            </summary>
+            <returns></returns>
+        </member>
+        <member name="M:bundleSVC.Controllers.BundlesController.GetBundleByCode(System.Int32)">
+            <summary>
+            Get a specific bundle by id/code.
+            </summary>
+            <param name="id"></param>
+            <returns></returns>
+        </member>
+        <member name="M:bundleSVC.Controllers.BundlesController.GetBundleByName(System.String)">
+            <summary>
+            Get bundles by name.
+            </summary>
+            <param name="name"></param>
+            <returns></returns>
+        </member>
+        <member name="M:bundleSVC.Controllers.BundlesController.GetBundleByPrice(System.Single,System.String,System.String)">
+            <summary>
+            Get bundles filtered by price in ascending or descending order.
+            The order is optional when using the equality operator "==".
+            </summary>
+            <param name="price">        The price to check.                                            </param>
+            <param name="condition">    Smaller than or equal to, Greater than or equal to, Equal to.  </param>
+            <param name="order">        Ascending ("ASC"), Descending ("DESC").                        </param>
+            <returns></returns>
+        </member>
+        <member name="M:bundleSVC.Controllers.BundlesController.AddBundle(bundleSVC.DTO.BundleAddDTO)">
+            <summary>
+            Add a new bundle to the database.
+            </summary>
+            <param name="bundleDTO"></param>
+            <returns></returns>
+        </member>
+        <member name="M:bundleSVC.Controllers.BundlesController.DeactivateBundle(System.Int32)">
+            <summary>
+            De-activate a specific bundle by id/code.
+            </summary>
+            <param name="id"></param>
+            <returns></returns>
+        </member>
+        <member name="M:bundleSVC.Controllers.BundlesController.UpdateBundle(System.Int32,Microsoft.AspNetCore.JsonPatch.JsonPatchDocument{BundleSVC.DTO.BundleUpdateDTO})">
+            <summary>
+            Update a bundle by id/code.
+            The operation, field and value are specified in the body as a JSON string.
+            </summary>
+            <param name="id"></param>
+            <param name="patchDoc"></param>
+            <returns></returns>
+        </member>
+        <member name="M:bundleSVC.Controllers.BundlesController.RemoveBundle(System.Int32)">
+            <summary>
+            Remove a bundle, from the database, by id/code.
+            </summary>
+            <param name="id"></param>
+            <returns></returns>
+        </member>
+    </members>
+</doc>
