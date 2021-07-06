@@ -6,4 +6,4 @@ As you can see the process is quite convoluted, so I decided to make this applic
 
 Some QoL changes can be done so when I decide to come back to it, I'll see what I can do.
 
-- Kosmas Georgiadis aka CosmaOne
+-- Kosmas Georgiadis aka CosmaOne
