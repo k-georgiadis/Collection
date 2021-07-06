@@ -1,0 +1,26 @@
+C:\Users\CosmaOne\Documents\Visual Studio 2019\Projects\TS Client Map Preview Generator\TS Client Map Special Preview Generator\bin\Debug\TS Client Map Adder.exe.config
+C:\Users\CosmaOne\Documents\Visual Studio 2019\Projects\TS Client Map Preview Generator\TS Client Map Special Preview Generator\bin\Debug\TS Client Map Adder.exe.manifest
+C:\Users\CosmaOne\Documents\Visual Studio 2019\Projects\TS Client Map Preview Generator\TS Client Map Special Preview Generator\bin\Debug\TS Client Map Adder.application
+C:\Users\CosmaOne\Documents\Visual Studio 2019\Projects\TS Client Map Preview Generator\TS Client Map Special Preview Generator\bin\Debug\TS Client Map Adder.exe
+C:\Users\CosmaOne\Documents\Visual Studio 2019\Projects\TS Client Map Preview Generator\TS Client Map Special Preview Generator\bin\Debug\TS Client Map Adder.pdb
+C:\Users\CosmaOne\Documents\Visual Studio 2019\Projects\TS Client Map Preview Generator\TS Client Map Special Preview Generator\bin\Debug\TS Client Map Adder.xml
+C:\Users\CosmaOne\Documents\Visual Studio 2019\Projects\TS Client Map Preview Generator\TS Client Map Special Preview Generator\obj\Debug\TS_Client_Map_Adder.mainForm.resources
+C:\Users\CosmaOne\Documents\Visual Studio 2019\Projects\TS Client Map Preview Generator\TS Client Map Special Preview Generator\obj\Debug\TS_Client_Map_Adder.Resources.resources
+C:\Users\CosmaOne\Documents\Visual Studio 2019\Projects\TS Client Map Preview Generator\TS Client Map Special Preview Generator\obj\Debug\TS Client Map Adder.vbproj.GenerateResource.cache
+C:\Users\CosmaOne\Documents\Visual Studio 2019\Projects\TS Client Map Preview Generator\TS Client Map Special Preview Generator\obj\Debug\TS Client Map Adder.exe.manifest
+C:\Users\CosmaOne\Documents\Visual Studio 2019\Projects\TS Client Map Preview Generator\TS Client Map Special Preview Generator\obj\Debug\TS Client Map Adder.application
+C:\Users\CosmaOne\Documents\Visual Studio 2019\Projects\TS Client Map Preview Generator\TS Client Map Special Preview Generator\obj\Debug\TS Client Map Adder.exe
+C:\Users\CosmaOne\Documents\Visual Studio 2019\Projects\TS Client Map Preview Generator\TS Client Map Special Preview Generator\obj\Debug\TS Client Map Adder.xml
+C:\Users\CosmaOne\Documents\Visual Studio 2019\Projects\TS Client Map Preview Generator\TS Client Map Special Preview Generator\obj\Debug\TS Client Map Adder.pdb
+C:\Users\CosmaOne\Documents\Visual Studio 2019\Projects\TS Client Map Preview Generator\TS Client Map Special Preview Generator\obj\Debug\TS Client Map Adder.vbprojAssemblyReference.cache
+C:\Users\CosmaOne\Documents\Visual Studio 2019\Projects\TS Client Map Adder\TS Client Map Adder\bin\Debug\TS Client Map Adder.exe.config
+C:\Users\CosmaOne\Documents\Visual Studio 2019\Projects\TS Client Map Adder\TS Client Map Adder\bin\Debug\TS Client Map Adder.exe
+C:\Users\CosmaOne\Documents\Visual Studio 2019\Projects\TS Client Map Adder\TS Client Map Adder\bin\Debug\TS Client Map Adder.pdb
+C:\Users\CosmaOne\Documents\Visual Studio 2019\Projects\TS Client Map Adder\TS Client Map Adder\bin\Debug\TS Client Map Adder.xml
+C:\Users\CosmaOne\Documents\Visual Studio 2019\Projects\TS Client Map Adder\TS Client Map Adder\obj\Debug\TS Client Map Adder.vbprojAssemblyReference.cache
+C:\Users\CosmaOne\Documents\Visual Studio 2019\Projects\TS Client Map Adder\TS Client Map Adder\obj\Debug\TS_Client_Map_Adder.mainForm.resources
+C:\Users\CosmaOne\Documents\Visual Studio 2019\Projects\TS Client Map Adder\TS Client Map Adder\obj\Debug\TS_Client_Map_Adder.Resources.resources
+C:\Users\CosmaOne\Documents\Visual Studio 2019\Projects\TS Client Map Adder\TS Client Map Adder\obj\Debug\TS Client Map Adder.vbproj.GenerateResource.cache
+C:\Users\CosmaOne\Documents\Visual Studio 2019\Projects\TS Client Map Adder\TS Client Map Adder\obj\Debug\TS Client Map Adder.exe
+C:\Users\CosmaOne\Documents\Visual Studio 2019\Projects\TS Client Map Adder\TS Client Map Adder\obj\Debug\TS Client Map Adder.xml
+C:\Users\CosmaOne\Documents\Visual Studio 2019\Projects\TS Client Map Adder\TS Client Map Adder\obj\Debug\TS Client Map Adder.pdb
