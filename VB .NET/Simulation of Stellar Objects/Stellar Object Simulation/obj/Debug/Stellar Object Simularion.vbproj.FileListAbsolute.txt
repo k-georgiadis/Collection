@@ -8,3 +8,14 @@ C:\Users\CosmaOne\Documents\Visual Studio 2015\Projects\Stellar Object Simulatio
 C:\Users\CosmaOne\Documents\Visual Studio 2015\Projects\Stellar Object Simulation\Stellar Object Simulation\obj\Debug\Stellar Object Simularion.exe
 C:\Users\CosmaOne\Documents\Visual Studio 2015\Projects\Stellar Object Simulation\Stellar Object Simulation\obj\Debug\Stellar Object Simularion.xml
 C:\Users\CosmaOne\Documents\Visual Studio 2015\Projects\Stellar Object Simulation\Stellar Object Simulation\obj\Debug\Stellar Object Simularion.pdb
+C:\Users\CosmaOne\Documents\GitHub\Collection\VB .NET\Simulation of Stellar Objects\Stellar Object Simulation\bin\Debug\Stellar Object Simularion.exe.config
+C:\Users\CosmaOne\Documents\GitHub\Collection\VB .NET\Simulation of Stellar Objects\Stellar Object Simulation\obj\Debug\Stellar Object Simularion.exe
+C:\Users\CosmaOne\Documents\GitHub\Collection\VB .NET\Simulation of Stellar Objects\Stellar Object Simulation\obj\Debug\Stellar Object Simularion.xml
+C:\Users\CosmaOne\Documents\GitHub\Collection\VB .NET\Simulation of Stellar Objects\Stellar Object Simulation\obj\Debug\Stellar Object Simularion.pdb
+C:\Users\CosmaOne\Documents\GitHub\Collection\VB .NET\Simulation of Stellar Objects\Stellar Object Simulation\bin\Debug\Stellar Object Simularion.exe
+C:\Users\CosmaOne\Documents\GitHub\Collection\VB .NET\Simulation of Stellar Objects\Stellar Object Simulation\bin\Debug\Stellar Object Simularion.pdb
+C:\Users\CosmaOne\Documents\GitHub\Collection\VB .NET\Simulation of Stellar Objects\Stellar Object Simulation\bin\Debug\Stellar Object Simularion.xml
+C:\Users\CosmaOne\Documents\GitHub\Collection\VB .NET\Simulation of Stellar Objects\Stellar Object Simulation\obj\Debug\StellarObjectSimularion.blockForm.resources
+C:\Users\CosmaOne\Documents\GitHub\Collection\VB .NET\Simulation of Stellar Objects\Stellar Object Simulation\obj\Debug\StellarObjectSimularion.Resources.resources
+C:\Users\CosmaOne\Documents\GitHub\Collection\VB .NET\Simulation of Stellar Objects\Stellar Object Simulation\obj\Debug\Stellar Object Simularion.vbproj.GenerateResource.Cache
+C:\Users\CosmaOne\Documents\GitHub\Collection\VB .NET\Simulation of Stellar Objects\Stellar Object Simulation\obj\Debug\Stellar Object Simularion.vbprojAssemblyReference.cache

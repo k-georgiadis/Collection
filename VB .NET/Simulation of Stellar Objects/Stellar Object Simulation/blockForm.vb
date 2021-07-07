@@ -8,16 +8,16 @@
 
 'THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
+Imports System.Threading
 
 'FIXED BUG: Bottom right tunneling doesn't create transition for top-left corner. Bottom left does though. Something I missed?
 'The duplicate points are not the center of the ellipse but it's top-left corner. That is because of how the ellipse is drawn.
 'It seems I had forgotten to add the "2 * star.GetRadius" part in the condition.
 
 'FIXED BUG: Fix star labels when merged. They hide but the program keeps checking them. We need an extra variable to check whether their label has been disposed.
-'The hiddel label status was misconfigured.
+'The hidden label status was misconfigured.
 
-'FIXED BUG: When applying acceleration from planets to stars and vice-versa, sometimes the collection was modified while doing that (meaning that we create a new object)
-'while someone is calculating acceleration.
+'FIXED BUG: When applying acceleration from planets to stars and vice-versa, sometimes the collection was modified (created a new object).
 'Acceleration is now calculated by only one thread.
 
 'FIXED BUG: Sometimes when painting planets fast, the labels are mispositioned. Index is off by one step.
@@ -26,7 +26,6 @@
 'This happens because when the object count grows larger the applyAcceleration method takes a while. So by the time it checks if we are creating a label, it's too late.
 'We fix it by correcting the label location while creating the label.
 
-Imports System.Threading
 
 Public Class blockForm
     Dim rand As New Random
@@ -162,6 +161,11 @@ Public Class blockForm
                         generalTraj.Checked, numTraj.Value, collisionBounce.Checked)
         myUniverse.getGraphics.Clear(Color.Black)
 
+        'Set default boundaries.
+        right_bottom_boundary = {New PointF(defaultUniverseWidth - 1, defaultUniverseHeight - 1)}
+        left_top_boundary = {New PointF(0, 0)}
+
+        'Set default transformation matrix.
         defaultUniverseTransformation = myUniverse.getGraphics.Transform
 
         formLoaded = True
@@ -175,6 +179,7 @@ Public Class blockForm
 
         'Start timer.
         fpsTimer.Enabled = True
+
     End Sub
     Private Sub UniverseLive()
         'startstars()
@@ -211,7 +216,7 @@ Public Class blockForm
 
     Protected Overrides Sub OnPaint(ByVal e As PaintEventArgs)
         e.Graphics.DrawImage(myUniverse.getImage, New Point(0, 0)) 'Draw universe.
-        e.Graphics.DrawString(FPS.ToString, Me.Font, Brushes.White, defaultUniverseWidth - defaultClipOffset, defaultClipOffset + 10) 'Draw fps.
+        e.Graphics.DrawString(FPS.ToString, Me.Font, Brushes.White, defaultUniverseWidth - defaultClipOffset, defaultClipOffset + 10) 'Draw FPS.
     End Sub
     Private Sub PaintUniverseObjects()
 
@@ -224,15 +229,19 @@ Public Class blockForm
 
             'Tunneling.
             If obj.isStar And collisionTunnel.Checked And Not obj.IsOutOfBounds Then
-                Star_CheckForLeftTunneling(obj, obj.CenterOfMass) 'Left Wall.
-                Star_CheckForRightTunneling(obj, obj.CenterOfMass) 'Right Wall.
-                Star_CheckForTopTunneling(obj, obj.CenterOfMass) 'Top Wall.
+
+                Star_CheckForLeftTunneling(obj, obj.CenterOfMass)   'Left Wall.
+                Star_CheckForRightTunneling(obj, obj.CenterOfMass)  'Right Wall.
+                Star_CheckForTopTunneling(obj, obj.CenterOfMass)    'Top Wall.
                 Star_CheckForBottomTunneling(obj, obj.CenterOfMass) 'Bottom Wall.
+
             ElseIf collisionTunnel.Checked And Not obj.IsOutOfBounds Then
+
                 Planet_CheckForLeftTunneling(obj, obj.CenterOfMass)
                 Planet_CheckForRightTunneling(obj, obj.CenterOfMass)
                 Planet_CheckForTopTunneling(obj, obj.CenterOfMass)
                 Planet_CheckForBottomTunneling(obj, obj.CenterOfMass)
+
             End If
 
         Next
@@ -254,14 +263,17 @@ Public Class blockForm
                     myUniverse.getGraphics.Clear(Color.Black) 'Clear image.
                 End If
 
+                'Draw objects.
                 PaintUniverseObjects()
                 Me.Invoke(New InvalidateImageDelegate(AddressOf InvalidateImage))
+
             Catch ex As Exception
                 Console.WriteLine(ex.ToString)
             End Try
 
             onFrame = False
             Thread.Sleep(15) 'Delay 15 ms because 1ms is too fast and it causes flickering.
+
         End While
 
     End Sub
@@ -921,13 +933,15 @@ Public Class blockForm
         Dim newstar As New Star
 
         While applyingstarVelocity Or paintingStars Or StarArrayInUseFlag 'Wait until star list is free.
+
         End While
+
         StarArrayInUseFlag = True
 
         'Set new random color.
         myBrush = New SolidBrush(Color.FromArgb(rand.Next(0, 255), rand.Next(0, 255), rand.Next(0, 255)))
 
-        'Initialize and add new star to planet World.
+        'Initialize and add new star to the universe.
         newstar.Init(myUniverse, defaultUniverseTransformation, data(0), starRadius, starBorderWidth, myBrush.Color, starType, data(1).X, data(1).Y)
 
         myUniverse.AddStar(newstar)
@@ -952,13 +966,16 @@ Public Class blockForm
         'If it's merged remove thread from list and terminate.
         threadList.Remove(Thread.CurrentThread)
         Thread.CurrentThread.Abort()
+
     End Sub
     Private Sub createplanet(ByVal data() As PointF)
 
         Dim newplanet As New Planet
 
         While applyingPlanetAcceleration Or paintingPlanets Or PlanetArrayInUseFlag  'Wait until planet list is free.
+
         End While
+
         PlanetArrayInUseFlag = True
 
         'Initialize and add new planet to planet World.
@@ -983,6 +1000,7 @@ Public Class blockForm
         'If it's merged remove thread from list and terminate.
         threadList.Remove(Thread.CurrentThread)
         Thread.CurrentThread.Abort()
+
     End Sub
 
     '----------------------------------------------------------------------------------------------------------------------
@@ -1007,6 +1025,7 @@ Public Class blockForm
 
             StarArrayInUseFlag = True
             PlanetArrayInUseFlag = True
+
             Dim index As Integer = 0
 
             For Each obj In myUniverse.Objects
@@ -1014,6 +1033,7 @@ Public Class blockForm
                 UpdateObjStats(obj, index)
                 index = index + 1
             Next
+
             StarArrayInUseFlag = False
             PlanetArrayInUseFlag = False
 
@@ -1072,13 +1092,14 @@ Public Class blockForm
                 If firstPlanetLabelIndex < 0 Then
                     objectLabelList.Add(objectLocation) 'Just add them at the end as we normally would.
                 Else
-                    moveLabels = True 'Signal main thread to move the  planet labels one step down.
+                    moveLabels = True 'Signal main thread to move the planet labels one step down.
                     objectLabelList.Insert(firstPlanetLabelIndex, objectLocation) 'Insert label.
                 End If
             Else
                 objectLabelList.Add(objectLocation)  'Planet labels go at the end, after star labels.
             End If
 
+            'Move label below.
             If objectLabelList.Count > 1 And moveLabels = False Then
                 If objectLocation.Location.Y = objectLabelList(objectLabelList.Count - 2).Location.Y Then
                     objectLocation.Location = New Point(objectLocation.Location.X, objectLocation.Location.Y + labelSpace)
@@ -1087,6 +1108,7 @@ Public Class blockForm
 
             'Show label.
             objectLocation.Show()
+
         End If
     End Sub
     Private Delegate Sub UpdateObjStatsDelegate(ByVal star As Star, ByRef index As Integer)
@@ -1241,6 +1263,7 @@ Public Class blockForm
             CheckDragging() 'Check for universe dragging.
             ObjectHover() 'Check for object hover.
         End If
+
     End Sub
     Private Sub blockForm_Click(sender As Object, e As EventArgs) Handles Me.Click
 
@@ -1252,20 +1275,23 @@ Public Class blockForm
         If creationMode.Equals("p") And Not hover Then
 
             Dim newPlanetHalfSize As Double = (planetSize / 2) * zoomValue
-            'Because the pen width is integer we round it.
-            Dim newPlanetBorderWidth As Integer = Math.Round(planetBorderWidth * zoomValue, MidpointRounding.AwayFromZero)
+            Dim newPlanetBorderWidth As Integer = Math.Round(planetBorderWidth * zoomValue, MidpointRounding.AwayFromZero)  'Because the pen width is integer, we round it.
 
-            'If planet size exceeds boundaries.
+            'If planet size exceeds boundaries, don't create anything.
             If absoluteMousePoint.X + newPlanetHalfSize + newPlanetBorderWidth > myUniverse.getImage.Width Or
                 absoluteMousePoint.Y + newPlanetHalfSize + newPlanetBorderWidth > myUniverse.getImage.Height Or
                 absoluteMousePoint.X - newPlanetHalfSize - newPlanetBorderWidth < defaultClipOffset - 1 Or
                 mousePoint.Y - newPlanetHalfSize - newPlanetBorderWidth < left_top_boundary(0).Y - 1 Then
+
                 Exit Sub
+
             End If
 
             threadList.Add(New Thread(AddressOf createplanet)) 'Each planet is handled by a different thread.
             threadList.Last.Start(New PointF() {New PointF(mousePoint.X, mousePoint.Y), New PointF(numPlanetParamXVel.Value, numPlanetParamYVel.Value)}) 'Start thread.
+
         ElseIf creationMode.Equals("s") And Not hover Then
+
             Dim newStarRadius As Double = starRadius * zoomValue
 
             'If star size exceeds boundaries.
@@ -1273,14 +1299,18 @@ Public Class blockForm
                absoluteMousePoint.Y + newStarRadius > myUniverse.getImage.Height Or
                absoluteMousePoint.X - newStarRadius < defaultClipOffset Or
                absoluteMousePoint.Y - newStarRadius < defaultClipOffset Then
+
                 Exit Sub
+
             End If
 
             threadList.Add(New Thread(AddressOf createstar)) 'Each star is handled by a different thread.
             threadList.Last.Start(New PointF() {New PointF(mousePoint.X, mousePoint.Y), New PointF(numStarParamXVel.Value, numStarParamYVel.Value)}) 'Start thread.
+
         Else
-            ObjectSelected()
+            ObjectSelected() 'We selected an object.
         End If
+
     End Sub
     Private Sub blockForm_MouseWheel(sender As Object, e As MouseEventArgs) Handles Me.MouseWheel
 
@@ -1288,7 +1318,9 @@ Public Class blockForm
         If absoluteMousePoint.X >= imageWidth Or absoluteMousePoint.Y >= imageHeight Or
            absoluteMousePoint.X < defaultClipOffset Or absoluteMousePoint.Y < defaultClipOffset And
            Not onFrame Then
+
             Exit Sub
+
         End If
 
         'Zoom IN/OUT. 
@@ -1301,13 +1333,17 @@ Public Class blockForm
         'We need: 1.25 * X = 1.5 --> X = 1.5/1.25 --> newValue = appropriateValue / previousZoomValue
         Try
             If e.Delta = 120 And zoomValue < 10.0 Then
+
                 zoomValue += zoomStep 'Increment by one step. Zoom IN.
                 zoomValue = Math.Round(zoomValue, 5) 'Round value in case of trailing 0-9.
                 zoomUniverse()
+
             ElseIf e.Delta = -120 And zoomValue > zoomStep Then
+
                 zoomValue -= zoomStep 'Decrement by one step. Zoom OUT.
                 zoomValue = Math.Round(zoomValue, 5) 'Round value in case of trailing 0-9.
                 zoomUniverse()
+
             End If
         Catch ex As Exception
             Console.WriteLine(ex.ToString)
@@ -1323,14 +1359,18 @@ Public Class blockForm
 
     End Sub
     Private Sub blockForm_MouseUp(sender As Object, e As MouseEventArgs) Handles Me.MouseUp
+
         mouseIsDown = False
         dragStart = False
+
         If UniversePausedForDragging = True Then
             UniversePaused = False
             UniversePausedForDragging = False
         End If
+
         myUniverse.SetDragStatus(dragStart)
         counter = 0 'Reset counter.
+
     End Sub
     Private Sub blockForm_KeyDown(sender As Object, e As KeyEventArgs) Handles Me.KeyDown
 
@@ -1350,12 +1390,16 @@ Public Class blockForm
     Private Sub CheckPlanetContinuousMode(e As MouseEventArgs)
 
         If ctrlKeyDown And mouseIsDown And creationMode = "p" And counter > 2 Then
+
             dragStart = False
             Me.OnClick(e)
             counter = 0
+
         End If
+
     End Sub
     Private Sub CheckDragging()
+
         If Not ctrlKeyDown And mouseIsDown And dragStart And dragPoint <> absoluteMousePoint And counter > 5 And Not onFrame Then
 
             If UniversePaused = False Then
@@ -1363,16 +1407,21 @@ Public Class blockForm
                 UniversePausedForDragging = True
             End If
 
-            counter = 5
+            counter = 5 'The maximum speed we can draw objects. Lower means slower.
             myUniverse.SetDragStatus(dragStart)
 
+            'Move universe.
             Try
                 moveUniverse(dragPoint, absoluteMousePoint)
             Catch ex As Exception
                 Console.WriteLine(ex.ToString)
             End Try
+
+            'Update origin point.
             dragPoint = absoluteMousePoint
+
         End If
+
     End Sub
     Private Sub ObjectHover()
 
@@ -1384,24 +1433,29 @@ Public Class blockForm
             If obj.isStar Then
 
                 Dim ellipseEquation As Double = (mousePoint.X - obj.CenterOfMass.X) ^ 2 / (obj.Radius ^ 2) + (mousePoint.Y - obj.CenterOfMass.Y) ^ 2 / (obj.Radius ^ 2)
+
                 If Math.Round(ellipseEquation, 2) <= 1 Then
                     hover = True 'Set flag.
                     hoverObject = obj
                     Exit For
                 End If
+
             Else
                 Dim planet As Planet = CType(obj, Planet) 'Cast object as planet.
                 Dim rec As New RectangleF(planet.GetVertices(0), New Size(planet.Size + planet.GetBorderWidth, planet.Size + planet.GetBorderWidth))
+
                 If rec.Contains(mousePoint) Then
                     hoverObject = obj
                     hover = True 'Set flag.
                     Exit For
                 End If
+
             End If
         Next
 
         'If we haven't selected anything.
         If selectedObject Is Nothing Then
+
             'Update text fields with info of hovering object.
             If hover Then
                 UpdateTxtInfo(hoverObject)
@@ -1409,31 +1463,41 @@ Public Class blockForm
                 hoverObject = Nothing 'Empty object.
                 UpdateTxtInfo(hoverObject) 'Clear fields.
             End If
+
         ElseIf selectedObject.IsMerged Then
+
             selectedObject = Nothing 'Empty object.
             UpdateTxtInfo(selectedObject) 'Clear fields.
+
         End If
+
     End Sub
     Private Sub ObjectSelected()
 
         'If clicked on nothing, clear selection.
         If Not hover Then
+
             If selectedObject IsNot Nothing Then
                 selectedObject.IsSelected = False
                 selectedObject = Nothing
             End If
+
         Else
             If selectedObject IsNot Nothing Then
                 If Not selectedObject.Equals(hoverObject) Then 'If clicked on another object.
                     selectedObject.IsSelected = False
                 Else 'If clicked on self, deselect and exit sub.
+
                     selectedObject.IsSelected = False
                     selectedObject = Nothing
                     Exit Sub
+
                 End If
             End If
+
             selectedObject = hoverObject 'Set new selected object.
             selectedObject.IsSelected = True
+
         End If
 
     End Sub
@@ -1459,7 +1523,13 @@ Public Class blockForm
 
                 txtInfoLoc.Text = objLocX + " - " + objLocY
                 txtInfoMass.Text = obj.Mass.ToString
-                If obj.isStar Then txtInfoSize.Text = obj.Radius.ToString Else txtInfoSize.Text = obj.Size.ToString
+
+                If obj.isStar Then
+                    txtInfoSize.Text = obj.Radius.ToString
+                Else
+                    txtInfoSize.Text = obj.Size.ToString
+                End If
+
                 txtInfoAcc.Text = objAccX + " - " + objAccY
                 txtInfoVel.Text = objVelX + " - " + objVelY
             Else
@@ -1470,6 +1540,7 @@ Public Class blockForm
                 txtInfoVel.Clear()
             End If
         End If
+
     End Sub
     '----------------------------------------------------------------------------------------------------------------------
     '----------------------------------------------------------------------------------------------------------------------
@@ -1501,6 +1572,7 @@ Public Class blockForm
 
     End Sub
     Private Sub modeNothing_CheckedChanged(sender As Object, e As EventArgs) Handles modeNothing.CheckedChanged
+
         If modeNothing.Checked Then
 
             If creationMode.Equals("s") Then
@@ -1515,16 +1587,19 @@ Public Class blockForm
             boxStarParam.Enabled = True
             boxPlanetParam.Enabled = True
         End If
+
     End Sub
     Private Sub showTraj_CheckedChanged(sender As Object, e As EventArgs) Handles generalTraj.CheckedChanged
 
         myUniverse.SetTrajStatus(generalTraj.Checked)
+
         If Not generalTraj.Checked Then
             numTraj.Visible = False
             myUniverse.Planets.ForEach(Sub(p) p.ClearTrajectory())
         Else
             numTraj.Visible = True
         End If
+
     End Sub
     Private Sub pointNumber_ValueChanged(sender As Object, e As EventArgs) Handles numTraj.ValueChanged
 
@@ -1644,6 +1719,7 @@ Public Class blockForm
             InvalidateImage() 'Refresh form.
 
         End If
+
     End Sub
     Private Sub moveUniverse(ByVal originPoint As PointF, ByVal endPoint As PointF)
 

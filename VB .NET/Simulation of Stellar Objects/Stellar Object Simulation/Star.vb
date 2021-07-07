@@ -82,12 +82,14 @@ Public Class Star
             objectVelY = sVelY / objectUniverse.getDistanceMultiplier 'Init Y Velocity.
             objectSelected = False 'Init selection flag.
         End If
+
         objectAccX = 0 'Init Acceleration X.
         objectAccY = 0 'Init Acceleration Y.
         objectMerged = False 'Init state of object.
 
         objectMerging = False 'Init merging status flag.
         objectOutOfBounds = False 'Init "out of bounds" flag.
+
     End Sub
 
     Friend Sub applyAcceleration(ByVal objectList As List(Of StellarObject), ByVal gravityConstant As Double)

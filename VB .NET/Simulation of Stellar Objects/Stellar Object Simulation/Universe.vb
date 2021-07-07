@@ -45,7 +45,7 @@ Public Class Universe
     Private maxTrajPoints As Integer
 
     Private Const gravityConstant As Double = 6.674 * 10 ^ -11
-    Private Const distanceMultiplier As Integer = 1000 'Multiply each pixel by this number to
+    Private Const distanceMultiplier As Integer = 1000 'Multiply each pixel by this number.
     Private Const M As Double = 19890000000.0 ' = 1.989E+10 'This is my edited mass. The real Solar Mass = 1.989E+30
 
     Property OffsetX() As Double
@@ -318,6 +318,7 @@ Public Class Universe
         universeHeight = clipBounds.Height
 
         resetOffset = True
+
     End Sub
     Friend Sub ResetAllOffsets(ByRef starArrayUse As Boolean, ByRef planetArrayUse As Boolean,
                             ByRef paintingStars As Boolean, ByRef paintingPlanets As Boolean)
