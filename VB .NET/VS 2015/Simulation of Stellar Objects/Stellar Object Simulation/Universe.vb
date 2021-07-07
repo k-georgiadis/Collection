@@ -1,4 +1,4 @@
-﻿'Stellar Object Simulation. A simple simulation of stellar objects of their in-between gravity force interactions.
+﻿'Stellar Object Simulation. A simple simulation of stellar objects and their in-between gravity force interactions.
 'Copyright(C) 2021  Kosmas Georgiadis
 
 'This program Is free software: you can redistribute it And/Or modify
