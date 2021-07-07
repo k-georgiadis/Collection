@@ -158,7 +158,6 @@
       <LastGenOutput>Settings.Designer.vb</LastGenOutput>
     </None>
     <None Include="App.config" />
-    <None Include="TS Client Map Adder_TemporaryKey.pfx" />
   </ItemGroup>
   <ItemGroup>
     <Content Include="SUN.ICO" />

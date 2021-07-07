@@ -1,4 +1,20 @@
-﻿Public Class Main
+﻿'Hyper Terminal. A simple hyper terminal application for serial communication between devices. 
+'Copyright(C) 2021  Kosmas Georgiadis
+
+'This program Is free software: you can redistribute it And/Or modify
+'it under the terms Of the GNU General Public License As published by
+'the Free Software Foundation, either version 3 Of the License, Or
+'(at your option) any later version.
+
+'This program Is distributed In the hope that it will be useful,
+'but WITHOUT ANY WARRANTY; without even the implied warranty Of
+'MERCHANTABILITY Or FITNESS FOR A PARTICULAR PURPOSE.  See the
+'GNU General Public License For more details.
+
+'You should have received a copy Of the GNU General Public License
+'along with this program. If Not, see <https://www.gnu.org/licenses/>.
+
+Public Class Main
 
     Dim listen As Integer = 0
     Dim checkPort As Integer = 0
@@ -221,15 +237,18 @@
 
             ElseIf type = "byte" Then
 
-                If data.Length = 1 Then data = "0" + data 'Add the leading zero(0) if we didn't send full byte.
                 com.Write(New Byte() {Convert.ToInt16(data, 16)}, 0, 1)
-                data = "0x" + data.ToUpper
+
+                'If data.Length = 1 Then
+                'data = "0" + data 'Add the leading zero(0) if we didn't send full byte.
+
+                'data = "0x" + data.ToUpper
 
             End If
 
             'Add echo.
             If echoCheck.Checked = True Then
-                AddFormattedText(outputTextBox, data + Environment.NewLine, Color.Blue, FontStyle.Regular)
+                AddFormattedText(outputTextBox, data, Color.Blue, FontStyle.Regular)
             End If
 
             'Clear text if needed.
@@ -245,20 +264,35 @@
     Private Sub COM_DataReceived(ByVal sender As Object, ByVal e As IO.Ports.SerialDataReceivedEventArgs)
 
         'This Sub gets called automatically, when the COM port receives data.
+        Dim str As String = com.ReadExisting
+
+        'Print as string or as HEX bytes.
         If stringMode.Checked = True Then
-            Dim str As String = com.ReadExisting
             AddFormattedText(outputTextBox, str, Color.Purple, FontStyle.Bold)
         Else
-            Dim data As Byte()
+            Dim data As New List(Of Byte)
+            Dim byte_val As Byte
+            Dim HexData As String
 
-            data = New Byte(0) {}
-            com.Read(data, 0, 1)
+            For Each c As Char In str
 
-            'Isolate byte.
-            HexData = Convert.ToString(data.Last, 16)
-            If HexData.Length = 1 Then HexData = "0" + HexData 'Add the leading zero(0) if we didn't send full byte.
+                byte_val = Convert.ToByte(c)
+                HexData = Convert.ToString(byte_val, 16)
 
-            AddFormattedText(outputTextBox, "0x" + HexData.ToString.ToUpper + Environment.NewLine, Color.Purple, FontStyle.Bold)
+                'Add the leading zero(0) if we didn't get a full byte.
+                If HexData.Length = 1 Then
+                    HexData = "0" + HexData
+                End If
+
+                'Add newline if necessary.
+                If c = Chr(10) Then
+                    HexData += vbNewLine
+                End If
+
+                'AddFormattedText(outputTextBox, "0x" + HexData.ToString.ToUpper, Color.Purple, FontStyle.Bold)
+                AddFormattedText(outputTextBox, HexData.ToString.ToUpper, Color.Purple, FontStyle.Bold)
+            Next
+
         End If
     End Sub
 

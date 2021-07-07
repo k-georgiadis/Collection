@@ -82,16 +82,16 @@ Partial Class Main
         Me.outputTextBox.Location = New System.Drawing.Point(12, 12)
         Me.outputTextBox.Name = "outputTextBox"
         Me.outputTextBox.ReadOnly = True
-        Me.outputTextBox.Size = New System.Drawing.Size(513, 254)
+        Me.outputTextBox.Size = New System.Drawing.Size(513, 305)
         Me.outputTextBox.TabIndex = 2
         Me.outputTextBox.Text = ""
         '
         'inputData
         '
         Me.inputData.Font = New System.Drawing.Font("Courier New", 9.75!, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, CType(161, Byte))
-        Me.inputData.Location = New System.Drawing.Point(12, 272)
+        Me.inputData.Location = New System.Drawing.Point(12, 325)
         Me.inputData.Name = "inputData"
-        Me.inputData.Size = New System.Drawing.Size(513, 136)
+        Me.inputData.Size = New System.Drawing.Size(513, 83)
         Me.inputData.TabIndex = 6
         Me.inputData.Text = ""
         '
