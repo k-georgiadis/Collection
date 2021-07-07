@@ -1,4 +1,19 @@
-﻿Imports System.Threading
+﻿'Stellar Object Simulation. A simple simulation of stellar objects and their in-between gravity force interactions.
+'Copyright(C) 2021  Kosmas Georgiadis
+
+'This program Is free software: you can redistribute it And/Or modify
+'it under the terms Of the GNU General Public License As published by
+'the Free Software Foundation, either version 3 Of the License, Or
+'(at your option) any later version.
+
+'This program Is distributed In the hope that it will be useful,
+'but WITHOUT ANY WARRANTY; without even the implied warranty Of
+'MERCHANTABILITY Or FITNESS FOR A PARTICULAR PURPOSE.  See the
+'GNU General Public License For more details.
+
+'You should have received a copy Of the GNU General Public License
+'along with this program. If Not, see <https://www.gnu.org/licenses/>.
+
 
 'FIXED BUG: Bottom right tunneling doesn't create transition for top-left corner. Bottom left does though. Something I missed?
 'The duplicate points are not the center of the ellipse but it's top-left corner. That is because of how the ellipse is drawn.
@@ -16,6 +31,9 @@
 'Therefore, while finding how many objects are merged, after a few lines of code it changes because we are still applying acceleration and a merge occured.
 'This happens because when the object count grows larger the applyAcceleration method takes a while. So by the time it checks if we are creating a label, it's too late.
 'We fix it by correcting the label location while creating the label.
+
+Imports System.Threading
+
 Public Class blockForm
     Dim rand As New Random
 
