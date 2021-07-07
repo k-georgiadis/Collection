@@ -1,4 +1,4 @@
-A small application for inserting maps to Tiberian Sun Client. 
+A small application for inserting maps to the Tiberian Sun Client (https://github.com/CnCNet/xna-cncnet-client).
 
 Currently, the only way to add maps to Tiberian Sun Client is create an image preview of the map, add it to the next desired map folder together with map file itself and then insert the proper records in the "MPMaps.ini" file.
 
