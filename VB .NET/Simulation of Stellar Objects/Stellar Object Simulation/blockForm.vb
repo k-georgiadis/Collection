@@ -47,28 +47,28 @@ Public Class blockForm
     Dim planetSize As Integer = 10
 
     Dim myUniverse As New Universe
-    Dim defaultUniverseTransformation As New Drawing2D.Matrix
-    Dim defaultUniverseWidth As Integer = 1100
-    Dim defaultUniverseHeight As Integer = 500
+    Dim myUniverseMatrix As New Drawing2D.Matrix
 
-    Dim universeWidth As Integer = defaultUniverseWidth
-    Dim universeHeight As Integer = defaultUniverseHeight
+    Dim defaultUniverseMatrix As New Drawing2D.Matrix
+    Dim defaultUniverseWidth As Double = 1100
+    Dim defaultUniverseHeight As Double = 500
+
+    Dim universeWidth As Double = defaultUniverseWidth
+    Dim universeHeight As Double = defaultUniverseHeight
     Dim imageWidth As Integer = universeWidth
     Dim imageHeight As Integer = universeHeight
 
-    Dim right_bottom_boundary() As PointF = {New PointF(defaultUniverseWidth - 1, defaultUniverseHeight - 1)}
-    Dim left_top_boundary() As PointF = {New PointF(0, 0)}
-
-    Dim defaultClipOffset As Integer = 50
-    Dim clipOffsetX As Integer = defaultClipOffset
-    Dim clipOffsetY As Integer = defaultClipOffset
+    Dim defaultClipOffset As Double = 50
+    Dim clipOffsetX As Double = defaultClipOffset
+    Dim clipOffsetY As Double = defaultClipOffset
+    Dim totalDragOffset As New PointF(0, 0)
 
     'Clip offset width/height because when zooming it changes. It's X/Y coordinate isn't its length anymore.
-    Dim clipOffsetWidth As Integer = Math.Abs(clipOffsetX - left_top_boundary(0).X)
-    Dim clipOffsetHeight As Integer = Math.Abs(clipOffsetY - left_top_boundary(0).Y)
+    'Dim clipOffsetWidth As Integer = Math.Abs(clipOffsetX - left_top_boundary(0).X)
+    'Dim clipOffsetHeight As Integer = Math.Abs(clipOffsetY - left_top_boundary(0).Y)
 
-    Dim mousePoint As New Point
-    Dim absoluteMousePoint As New Point
+    Dim mousePoint As New PointF
+    Dim absoluteMousePoint As New PointF
 
     Dim zoomValue As Double = 1.0 'Default zoom value.
     Dim zoomStep As Double = 0.05 'Default zoom step.
@@ -99,6 +99,8 @@ Public Class blockForm
     'Flags for threads.
     Dim UniversePaused As Boolean = False
     Dim UniversePausedForDragging As Boolean = False
+    Dim dragging As Boolean = False
+    Dim zooming As Boolean = False
     Dim onFrame As Boolean = False
     Dim StarArrayInUseFlag As Boolean = False
     Dim PlanetArrayInUseFlag As Boolean = False
@@ -161,12 +163,8 @@ Public Class blockForm
                         generalTraj.Checked, numTraj.Value, collisionBounce.Checked)
         myUniverse.getGraphics.Clear(Color.Black)
 
-        'Set default boundaries.
-        right_bottom_boundary = {New PointF(defaultUniverseWidth - 1, defaultUniverseHeight - 1)}
-        left_top_boundary = {New PointF(0, 0)}
-
         'Set default transformation matrix.
-        defaultUniverseTransformation = myUniverse.getGraphics.Transform
+        defaultUniverseMatrix = myUniverse.getGraphics.Transform
 
         formLoaded = True
         Timer1.Enabled = True
@@ -184,7 +182,7 @@ Public Class blockForm
     Private Sub UniverseLive()
         'startstars()
 
-        'So basically the idea is this.
+        'So basically the idea is this:
         'We calculate the gravities applied to each object from all other objects.
         'Then we move the objects. That way we eliminate the distance "errors" that occured by moving the object as soon as its accelaration was calculated.
         'Because we used threads for each object, they weren't simultaneous so by the time an object tried to calculate it's gravity from another object,
@@ -193,10 +191,13 @@ Public Class blockForm
         'Now we calculate the accelerations for ALL stars and THEN we move them.
 
         While 1
+
+            'Stop universe if paused.
             If onFrame Or UniversePaused Then Continue While
 
             myUniverse.Live(applyingstarVelocity, applyingPlanetAcceleration, paintingStars, paintingPlanets) 'Start calculating accelarations and move objects.
             frameCounter += 1 'Count frames.
+
             Try
                 Thread.Sleep(numTimeTick.Value) 'Delay.
             Catch ex As Exception
@@ -223,28 +224,35 @@ Public Class blockForm
         paintingStars = True
         paintingPlanets = True
         'debug_stopwatch = Stopwatch.StartNew()
+
+        'Get graphics once and not everytime we check an object.
+
+        Dim universeGraphics As Graphics = myUniverse.getGraphics
+
         For Each obj In myUniverse.Objects.FindAll(Function(o) o.IsMerged = False And o.isVisible = True)
 
-            obj.Paint()
+            obj.Paint(universeGraphics)
 
             'Tunneling.
             If obj.isStar And collisionTunnel.Checked And Not obj.IsOutOfBounds Then
 
-                Star_CheckForLeftTunneling(obj, obj.CenterOfMass)   'Left Wall.
-                Star_CheckForRightTunneling(obj, obj.CenterOfMass)  'Right Wall.
-                Star_CheckForTopTunneling(obj, obj.CenterOfMass)    'Top Wall.
-                Star_CheckForBottomTunneling(obj, obj.CenterOfMass) 'Bottom Wall.
+                Star_CheckForLeftTunneling(obj, obj.CenterOfMass, universeGraphics)   'Left Wall.
+                Star_CheckForRightTunneling(obj, obj.CenterOfMass, universeGraphics)  'Right Wall.
+                Star_CheckForTopTunneling(obj, obj.CenterOfMass, universeGraphics)    'Top Wall.
+                Star_CheckForBottomTunneling(obj, obj.CenterOfMass, universeGraphics) 'Bottom Wall.
 
             ElseIf collisionTunnel.Checked And Not obj.IsOutOfBounds Then
 
-                Planet_CheckForLeftTunneling(obj, obj.CenterOfMass)
-                Planet_CheckForRightTunneling(obj, obj.CenterOfMass)
-                Planet_CheckForTopTunneling(obj, obj.CenterOfMass)
-                Planet_CheckForBottomTunneling(obj, obj.CenterOfMass)
-
+                Planet_CheckForLeftTunneling(obj, obj.CenterOfMass, universeGraphics)
+                Planet_CheckForRightTunneling(obj, obj.CenterOfMass, universeGraphics)
+                Planet_CheckForTopTunneling(obj, obj.CenterOfMass, universeGraphics)
+                Planet_CheckForBottomTunneling(obj, obj.CenterOfMass, universeGraphics)
+            ElseIf obj.IsOutOfBounds Then
+                Dim kek = 1
             End If
 
         Next
+
         'debug_stopwatch.Stop()
         'Console.WriteLine("  Painted stars in: " + debug_stopwatch.ElapsedMilliseconds.ToString)
         paintingStars = False
@@ -256,6 +264,9 @@ Public Class blockForm
 
         While 1
             onFrame = True
+
+            'Avoid painting objects while zooming/moving to avoid "object in use" exceptions.
+            If zooming Or dragging Then Continue While
 
             'Update world.
             Try
@@ -331,8 +342,8 @@ Public Class blockForm
         'Reset clip offset.
         clipOffsetX = defaultClipOffset
         clipOffsetY = defaultClipOffset
-        clipOffsetWidth = defaultClipOffset
-        clipOffsetHeight = defaultClipOffset
+        'clipOffsetWidth = defaultClipOffset
+        'clipOffsetHeight = defaultClipOffset
 
         zoomValue = 1.0 'Reset zoom level.
 
@@ -347,7 +358,7 @@ Public Class blockForm
     '----------------------------------------------------------------------------------------------------------------------
     '----------------------------------------------------------------------------------------------------------------------
 
-    Private Sub Star_CheckForLeftTunneling(ByVal star As Star, ByVal center As PointF)
+    Private Sub Star_CheckForLeftTunneling(ByVal star As Star, ByVal center As PointF, ByVal universeGraphics As Graphics)
 
         Dim radius As Integer = star.Radius
 
@@ -361,37 +372,34 @@ Public Class blockForm
 
             Dim newPen As New Pen(star.Color)
 
-            Dim duplicatePoint = New PointF(center.X + universeWidth - clipOffsetWidth - radius, center.Y - radius)
+            'Calculate duplicate origin point.
+            Dim duplicatePoint = New PointF(universeWidth - radius + center.X - clipOffsetX, center.Y - radius)
 
             'Create duplicate ellipse for transition purposes.
-            myUniverse.getGraphics.DrawEllipse(newPen, duplicatePoint.X, duplicatePoint.Y, radius * 2, radius * 2)
-            myUniverse.getGraphics.FillEllipse(newPen.Brush, duplicatePoint.X, duplicatePoint.Y, radius * 2, radius * 2)
+            universeGraphics.DrawEllipse(newPen, duplicatePoint.X, duplicatePoint.Y, radius * 2, radius * 2)
+            universeGraphics.FillEllipse(newPen.Brush, duplicatePoint.X, duplicatePoint.Y, radius * 2, radius * 2)
 
             star.DuplicatePointLeft = duplicatePoint 'Set star duplicate point.
+
+        End If
+
+        'Move the star, but just once.
+        If center.X < clipOffsetX Then
+            star.Move(0, "", star.DuplicatePointLeft.X + radius, center.Y)
+            center = star.CenterOfMass
         End If
 
         'Center of Mass moved. Draw the duplicate ellipse in it's position to preserve the transition.
-        If (center.X < clipOffsetX Or center.X > right_bottom_boundary(0).X - radius) And
-                                                 star.TransitionDirection.Contains("l") Then
+        If center.X > universeWidth - radius And star.TransitionDirection.Contains("l") Then
 
             Dim newPen As New Pen(star.Color)
-            Dim newBrush As SolidBrush = New SolidBrush(star.Color)
 
-            'Move the star, but just once.
-            If center.X < clipOffsetX Then
-                star.Move(0, "", star.DuplicatePointLeft.X + radius, center.Y)
-                center = star.CenterOfMass
-            End If
-
-            Dim duplicatePoint As New PointF
-
-            'Set point for duplicate ellipse.
-            duplicatePoint = New PointF(center.X - universeWidth + clipOffsetWidth - radius,
-                                        center.Y - radius)
+            'Calculate duplicate origin point.
+            Dim duplicatePoint As New PointF(clipOffsetX - radius - universeWidth + center.X, center.Y - radius)
 
             'Create duplicate ellipse for transition purposes.
-            myUniverse.getGraphics.DrawEllipse(newPen, duplicatePoint.X, duplicatePoint.Y, radius * 2, radius * 2)
-            myUniverse.getGraphics.FillEllipse(newBrush, duplicatePoint.X, duplicatePoint.Y, radius * 2, radius * 2)
+            universeGraphics.DrawEllipse(newPen, duplicatePoint.X, duplicatePoint.Y, radius * 2, radius * 2)
+            universeGraphics.FillEllipse(newPen.Brush, duplicatePoint.X, duplicatePoint.Y, radius * 2, radius * 2)
 
             star.DuplicatePointLeft = duplicatePoint 'Set star duplicate point.
 
@@ -404,12 +412,12 @@ Public Class blockForm
         End If
 
     End Sub
-    Private Sub Star_CheckForRightTunneling(ByVal star As Star, ByVal center As PointF)
+    Private Sub Star_CheckForRightTunneling(ByVal star As Star, ByVal center As PointF, ByVal universeGraphics As Graphics)
 
         Dim radius As Single = star.Radius
 
         'Right tunneling.
-        If center.X + radius > right_bottom_boundary(0).X And Not star.TransitionDirection.Contains("l") Then
+        If center.X + radius > universeWidth And Not star.TransitionDirection.Contains("l") Then
 
             'Add transition direction.
             If Not star.TransitionDirection.Contains("r") Then
@@ -418,35 +426,33 @@ Public Class blockForm
 
             Dim newPen As New Pen(star.Color)
 
-            Dim duplicatePoint = New PointF(center.X - universeWidth + clipOffsetWidth - radius, center.Y - radius)
+            'Calculate duplicate origin point.
+            Dim duplicatePoint = New PointF(clipOffsetX - radius + center.X - universeWidth, center.Y - radius)
 
             'Create duplicate ellipse for transition purposes.
-            myUniverse.getGraphics.DrawEllipse(newPen, duplicatePoint.X, duplicatePoint.Y, radius * 2, radius * 2)
-            myUniverse.getGraphics.FillEllipse(newPen.Brush, duplicatePoint.X, duplicatePoint.Y, radius * 2, radius * 2)
+            universeGraphics.DrawEllipse(newPen, duplicatePoint.X, duplicatePoint.Y, radius * 2, radius * 2)
+            universeGraphics.FillEllipse(newPen.Brush, duplicatePoint.X, duplicatePoint.Y, radius * 2, radius * 2)
 
             star.DuplicatePointRight = duplicatePoint 'Set star duplicate point.
         End If
 
+        'Move the star, but just once.
+        If center.X > universeWidth Then
+            star.Move(0, "", star.DuplicatePointRight.X + radius, center.Y)
+            center = star.CenterOfMass
+        End If
+
         'Center of Mass moved. Draw the duplicate ellipse in it's position to preserve the transition.
-        If (center.X > right_bottom_boundary(0).X Or center.X < clipOffsetX + radius) And
-                                                      star.TransitionDirection.Contains("r") Then
+        If center.X < clipOffsetX + radius And star.TransitionDirection.Contains("r") Then
+
             Dim newPen As New Pen(star.Color)
 
-            'Move the star, but just once.
-            If center.X > right_bottom_boundary(0).X Then
-                star.Move(0, "", star.DuplicatePointRight.X + radius, center.Y)
-                center = star.CenterOfMass
-            End If
-
-            Dim duplicatePoint As New PointF
-
-            'Set new point for duplicate ellipse.
-            duplicatePoint = New PointF(center.X + universeWidth - clipOffsetWidth - radius,
-                                        center.Y - radius)
+            'Calculate duplicate origin point.
+            Dim duplicatePoint As New PointF(universeWidth - radius - clipOffsetX + center.X, center.Y - radius)
 
             'Create duplicate ellipse for transition purposes.
-            myUniverse.getGraphics.DrawEllipse(newPen, duplicatePoint.X, duplicatePoint.Y, radius * 2, radius * 2)
-            myUniverse.getGraphics.FillEllipse(newPen.Brush, duplicatePoint.X, duplicatePoint.Y, radius * 2, radius * 2)
+            universeGraphics.DrawEllipse(newPen, duplicatePoint.X, duplicatePoint.Y, radius * 2, radius * 2)
+            universeGraphics.FillEllipse(newPen.Brush, duplicatePoint.X, duplicatePoint.Y, radius * 2, radius * 2)
 
             star.DuplicatePointRight = duplicatePoint 'Set star duplicate point.
 
@@ -460,50 +466,45 @@ Public Class blockForm
 
 
     End Sub
-    Private Sub Star_CheckForTopTunneling(ByVal star As Star, ByVal center As PointF)
+    Private Sub Star_CheckForTopTunneling(ByVal star As Star, ByVal center As PointF, ByVal universeGraphics As Graphics)
 
         Dim radius As Integer = star.Radius
 
         'Top tunneling.
-        If center.Y - radius < clipOffsetHeight And Not star.TransitionDirection.Contains("b") Then
-
-            Dim newPen As New Pen(star.Color)
+        If center.Y - radius < clipOffsetY And Not star.TransitionDirection.Contains("b") Then
 
             'Add transition direction.
             If Not star.TransitionDirection.Contains("t") Then
                 star.TransitionDirection = star.TransitionDirection + "t"
             End If
 
-            Dim duplicatePoint = New PointF(center.X - radius, center.Y + universeHeight - clipOffsetHeight - radius)
+            Dim newPen As New Pen(star.Color)
+
+            'Calculate duplicate origin point.
+            Dim duplicatePoint = New PointF(center.X - radius, universeHeight + center.Y - clipOffsetY - radius)
 
             'Create duplicate ellipse for transition purposes.
-            myUniverse.getGraphics.DrawEllipse(newPen, duplicatePoint.X, duplicatePoint.Y, radius * 2, radius * 2)
-            myUniverse.getGraphics.FillEllipse(newPen.Brush, duplicatePoint.X, duplicatePoint.Y, radius * 2, radius * 2)
+            universeGraphics.DrawEllipse(newPen, duplicatePoint.X, duplicatePoint.Y, radius * 2, radius * 2)
+            universeGraphics.FillEllipse(newPen.Brush, duplicatePoint.X, duplicatePoint.Y, radius * 2, radius * 2)
 
-            'If the star is going through top-left corner, draw duplicate on bottom-left corner.
-            If center.X < clipOffsetX + radius Then
+            'If the star is also tunneling to the left, draw a second duplicate in the bottom-right corner.
+            If center.X - radius < clipOffsetX Then
 
-                'If the duplicate is going through the bottom-left corner, duplicate the duplicate to the right. DAFAQ M8.
-                If duplicatePoint.X < clipOffsetX Then
+                'Calculate second duplicate origin point.
+                Dim secondDuplicatePoint As New PointF(universeWidth + duplicatePoint.X - clipOffsetX, duplicatePoint.Y)
 
-                    Dim secondDuplicatePoint As New PointF(duplicatePoint.X + universeWidth - clipOffsetWidth, duplicatePoint.Y)
+                'Create second duplicate ellipse for corner transition purposes.
+                universeGraphics.DrawEllipse(newPen, secondDuplicatePoint.X, secondDuplicatePoint.Y, radius * 2, radius * 2)
+                universeGraphics.FillEllipse(newPen.Brush, secondDuplicatePoint.X, secondDuplicatePoint.Y, radius * 2, radius * 2)
 
-                    'Create duplicate of duplicate ellipse for corner transition purposes.
-                    myUniverse.getGraphics.DrawEllipse(newPen, secondDuplicatePoint.X, secondDuplicatePoint.Y, radius * 2, radius * 2)
-                    myUniverse.getGraphics.FillEllipse(newPen.Brush, secondDuplicatePoint.X, secondDuplicatePoint.Y, radius * 2, radius * 2)
-                End If
+            ElseIf center.X + radius > universeWidth Then 'Else if the star is also tunneling to the right, draw a second duplicate in the bottom-left corner.
 
-            ElseIf center.X > right_bottom_boundary(0).X - radius Then 'Else if the star is going through the top-right corner, draw duplicate on bottom-right corner.
+                'Calculate second duplicate origin point.
+                Dim secondDuplicatePoint As New PointF(duplicatePoint.X - universeWidth + clipOffsetX, duplicatePoint.Y)
 
-                'If the duplicate is going through the bottom-right corner, duplicate the duplicate to the left. DAFAQ M8.
-                If duplicatePoint.X > right_bottom_boundary(0).X - 2 * radius Then
-
-                    Dim secondDuplicatePoint As New PointF(duplicatePoint.X - universeWidth + clipOffsetWidth, duplicatePoint.Y)
-
-                    'Create duplicate of duplicate ellipse for corner transition purposes.
-                    myUniverse.getGraphics.DrawEllipse(newPen, secondDuplicatePoint.X, secondDuplicatePoint.Y, radius * 2, radius * 2)
-                    myUniverse.getGraphics.FillEllipse(newPen.Brush, secondDuplicatePoint.X, secondDuplicatePoint.Y, radius * 2, radius * 2)
-                End If
+                'Create second duplicate ellipse for corner transition purposes.
+                universeGraphics.DrawEllipse(newPen, secondDuplicatePoint.X, secondDuplicatePoint.Y, radius * 2, radius * 2)
+                universeGraphics.FillEllipse(newPen.Brush, secondDuplicatePoint.X, secondDuplicatePoint.Y, radius * 2, radius * 2)
 
             End If
 
@@ -511,40 +512,43 @@ Public Class blockForm
 
         End If
 
+        'Move the star, but just once.
+        If center.Y < clipOffsetY Then
+            star.Move(0, "", center.X, star.DuplicatePointTop.Y + radius)
+            center = star.CenterOfMass
+        End If
+
         'Center of Mass moved. Draw the duplicate ellipse in it's position to preserve the transition.
-        If (center.Y < clipOffsetY Or center.Y > right_bottom_boundary(0).Y - radius) And
-                                                 star.TransitionDirection.Contains("t") Then
+        If center.Y > universeHeight - radius And star.TransitionDirection.Contains("t") Then
 
             Dim newPen As New Pen(star.Color)
 
-            'Move the star, but just once.
-            If center.Y < clipOffsetY Then
-                star.Move(0, "", center.X, star.DuplicatePointTop.Y + radius)
-                center = star.CenterOfMass
-            End If
-
-            Dim duplicatePoint = New PointF(center.X - radius, center.Y - universeHeight + clipOffsetHeight - radius)
+            'Calculate duplicate origin point.
+            Dim duplicatePoint = New PointF(center.X - radius, center.Y - universeHeight + clipOffsetY - radius)
 
             'Create duplicate ellipse for transition purposes.
-            myUniverse.getGraphics.DrawEllipse(newPen, duplicatePoint.X, duplicatePoint.Y, radius * 2, radius * 2)
-            myUniverse.getGraphics.FillEllipse(newPen.Brush, duplicatePoint.X, duplicatePoint.Y, radius * 2, radius * 2)
+            universeGraphics.DrawEllipse(newPen, duplicatePoint.X, duplicatePoint.Y, radius * 2, radius * 2)
+            universeGraphics.FillEllipse(newPen.Brush, duplicatePoint.X, duplicatePoint.Y, radius * 2, radius * 2)
 
-            'If the duplicate is going through the upper-left corner, duplicate the duplicate to the right. DAFAQ M8.
-            If duplicatePoint.X < clipOffsetX Then
+            'If the star is also tunneling to the left, draw a second duplicate in the top-right corner.
+            If center.X - radius < clipOffsetX Then
 
-                Dim secondDuplicatePoint As New PointF(duplicatePoint.X + universeWidth - clipOffsetWidth, duplicatePoint.Y)
+                'Calculate second duplicate origin point.
+                Dim secondDuplicatePoint As New PointF(universeWidth + duplicatePoint.X - clipOffsetX, duplicatePoint.Y)
 
-                'Create duplicate of duplicate ellipse for corner transition purposes.
-                myUniverse.getGraphics.DrawEllipse(newPen, secondDuplicatePoint.X, secondDuplicatePoint.Y, radius * 2, radius * 2)
-                myUniverse.getGraphics.FillEllipse(newPen.Brush, secondDuplicatePoint.X, secondDuplicatePoint.Y, radius * 2, radius * 2)
+                'Create second duplicate ellipse for corner transition purposes.
+                universeGraphics.DrawEllipse(newPen, secondDuplicatePoint.X, secondDuplicatePoint.Y, radius * 2, radius * 2)
+                universeGraphics.FillEllipse(newPen.Brush, secondDuplicatePoint.X, secondDuplicatePoint.Y, radius * 2, radius * 2)
 
-            ElseIf duplicatePoint.X > right_bottom_boundary(0).X - 2 * radius Then 'If the duplicate is going through the upper-right corner, duplicate the duplicate to the left. DAFAQ M8.
+            ElseIf center.X + radius > universeWidth Then  'Else if the star is also tunneling to the right, draw a second duplicate in the top-left corner.
 
-                Dim secondDuplicatePoint As New PointF(duplicatePoint.X - universeWidth + clipOffsetWidth, duplicatePoint.Y)
+                'Calculate second duplicate origin point.
+                Dim secondDuplicatePoint As New PointF(duplicatePoint.X - universeWidth + clipOffsetX, duplicatePoint.Y)
 
-                'Create duplicate of duplicate ellipse for corner transition purposes.
-                myUniverse.getGraphics.DrawEllipse(newPen, secondDuplicatePoint.X, secondDuplicatePoint.Y, radius * 2, radius * 2)
-                myUniverse.getGraphics.FillEllipse(newPen.Brush, secondDuplicatePoint.X, secondDuplicatePoint.Y, radius * 2, radius * 2)
+                'Create second duplicate ellipse for corner transition purposes.
+                universeGraphics.DrawEllipse(newPen, secondDuplicatePoint.X, secondDuplicatePoint.Y, radius * 2, radius * 2)
+                universeGraphics.FillEllipse(newPen.Brush, secondDuplicatePoint.X, secondDuplicatePoint.Y, radius * 2, radius * 2)
+
             End If
 
             star.DuplicatePointTop = duplicatePoint 'Set star duplicate point.
@@ -558,50 +562,45 @@ Public Class blockForm
         End If
 
     End Sub
-    Private Sub Star_CheckForBottomTunneling(ByVal star As Star, ByVal center As PointF)
+    Private Sub Star_CheckForBottomTunneling(ByVal star As Star, ByVal center As PointF, ByVal universeGraphics As Graphics)
 
         Dim radius As Integer = star.Radius
 
         'Bottom tunneling.
-        If center.Y + radius > right_bottom_boundary(0).Y And Not star.TransitionDirection.Contains("t") Then
-
-            Dim newPen As New Pen(star.Color)
+        If center.Y + radius > universeHeight And Not star.TransitionDirection.Contains("t") Then
 
             'Add transition direction.
             If Not star.TransitionDirection.Contains("b") Then
                 star.TransitionDirection = star.TransitionDirection + "b"
             End If
 
-            Dim duplicatePoint = New PointF(center.X - radius, center.Y - universeHeight + clipOffsetHeight - radius)
+            Dim newPen As New Pen(star.Color)
+
+            'Calculate duplicate origin point.
+            Dim duplicatePoint = New PointF(center.X - radius, clipOffsetY - radius + center.Y - universeHeight)
 
             'Create duplicate ellipse for transition purposes.
-            myUniverse.getGraphics.DrawEllipse(newPen, duplicatePoint.X, duplicatePoint.Y, radius * 2, radius * 2)
-            myUniverse.getGraphics.FillEllipse(newPen.Brush, duplicatePoint.X, duplicatePoint.Y, radius * 2, radius * 2)
+            universeGraphics.DrawEllipse(newPen, duplicatePoint.X, duplicatePoint.Y, radius * 2, radius * 2)
+            universeGraphics.FillEllipse(newPen.Brush, duplicatePoint.X, duplicatePoint.Y, radius * 2, radius * 2)
 
-            'If the star is going through bottom-left corner, draw duplicate on top-left corner.
-            If center.X < clipOffsetX + radius Then
+            'If the star is also tunneling to the left, draw a second duplicate in the top-right corner.
+            If center.X - radius < clipOffsetX Then
 
-                'If the duplicate is going through the top-left corner, duplicate the duplicate to the top-right corner. DAFAQ M8.
-                If duplicatePoint.X < clipOffsetX Then
+                'Calculate second duplicate origin point.
+                Dim secondDuplicatePoint As New PointF(universeWidth + duplicatePoint.X - clipOffsetX, duplicatePoint.Y)
 
-                    Dim secondDuplicatePoint As New PointF(duplicatePoint.X + universeWidth - clipOffsetWidth, duplicatePoint.Y)
+                'Create second duplicate ellipse for corner transition purposes.
+                universeGraphics.DrawEllipse(newPen, secondDuplicatePoint.X, secondDuplicatePoint.Y, radius * 2, radius * 2)
+                universeGraphics.FillEllipse(newPen.Brush, secondDuplicatePoint.X, secondDuplicatePoint.Y, radius * 2, radius * 2)
 
-                    'Create duplicate of duplicate ellipse for corner transition purposes.
-                    myUniverse.getGraphics.DrawEllipse(newPen, secondDuplicatePoint.X, secondDuplicatePoint.Y, radius * 2, radius * 2)
-                    myUniverse.getGraphics.FillEllipse(newPen.Brush, secondDuplicatePoint.X, secondDuplicatePoint.Y, radius * 2, radius * 2)
-                End If
+            ElseIf center.X + radius > universeWidth Then 'Else if the star is also tunneling to the right, draw a second duplicate in the top-left corner.
 
-            ElseIf center.X > right_bottom_boundary(0).X - radius Then 'Else if the star is going through the bottom-right corner, draw duplicate on top-right corner.
+                'Calculate second duplicate origin point.
+                Dim secondDuplicatePoint As New PointF(duplicatePoint.X - universeWidth + clipOffsetX, duplicatePoint.Y)
 
-                'If the duplicate is going through the top-right corner, duplicate the duplicate to the top-left corner. DAFAQ M8.
-                If duplicatePoint.X > right_bottom_boundary(0).X - radius * 2 Then
-
-                    Dim secondDuplicatePoint As New PointF(duplicatePoint.X - universeWidth + clipOffsetWidth, duplicatePoint.Y)
-
-                    'Create duplicate of duplicate ellipse for corner transition purposes.
-                    myUniverse.getGraphics.DrawEllipse(newPen, secondDuplicatePoint.X, secondDuplicatePoint.Y, radius * 2, radius * 2)
-                    myUniverse.getGraphics.FillEllipse(newPen.Brush, secondDuplicatePoint.X, secondDuplicatePoint.Y, radius * 2, radius * 2)
-                End If
+                'Create second duplicate ellipse for corner transition purposes.
+                universeGraphics.DrawEllipse(newPen, secondDuplicatePoint.X, secondDuplicatePoint.Y, radius * 2, radius * 2)
+                universeGraphics.FillEllipse(newPen.Brush, secondDuplicatePoint.X, secondDuplicatePoint.Y, radius * 2, radius * 2)
 
             End If
 
@@ -609,40 +608,42 @@ Public Class blockForm
 
         End If
 
+        'Move the star, but just once.
+        If center.Y > universeHeight Then
+            star.Move(0, "", center.X, star.DuplicatePointBottom.Y + radius)
+            center = star.CenterOfMass
+        End If
+
         'Center of Mass moved. Draw the duplicate ellipse in it's position to preserve the transition.
-        If (center.Y > right_bottom_boundary(0).Y Or center.Y < clipOffsetY + radius) And
-                                                     star.TransitionDirection.Contains("b") Then
+        If center.Y < clipOffsetY + radius And star.TransitionDirection.Contains("b") Then
 
             Dim newPen As New Pen(star.Color)
 
-            'Move the star, but just once.
-            If center.Y > right_bottom_boundary(0).Y Then
-                star.Move(0, "", center.X, star.DuplicatePointBottom.Y + radius)
-                center = star.CenterOfMass
-            End If
-
-            Dim duplicatePoint = New PointF(center.X - radius, center.Y + universeHeight - clipOffsetHeight - radius)
+            'Calculate duplicate origin point.
+            Dim duplicatePoint = New PointF(center.X - radius, universeHeight - radius + center.Y - clipOffsetY)
 
             'Create duplicate ellipse for transition purposes.
-            myUniverse.getGraphics.DrawEllipse(newPen, duplicatePoint.X, duplicatePoint.Y, radius * 2, radius * 2)
-            myUniverse.getGraphics.FillEllipse(newPen.Brush, duplicatePoint.X, duplicatePoint.Y, radius * 2, radius * 2)
+            universeGraphics.DrawEllipse(newPen, duplicatePoint.X, duplicatePoint.Y, radius * 2, radius * 2)
+            universeGraphics.FillEllipse(newPen.Brush, duplicatePoint.X, duplicatePoint.Y, radius * 2, radius * 2)
 
-            'If the duplicate is going through the bottom-left corner, duplicate the duplicate to the right. DAFAQ M8.
-            If duplicatePoint.X < clipOffsetX Then
+            'If the duplicate is also tunneling to the left, draw a second duplicate in the bottom-right corner.
+            If center.X - radius < clipOffsetX Then
 
-                Dim secondDuplicatePoint As New PointF(duplicatePoint.X + universeWidth - clipOffsetWidth, duplicatePoint.Y)
-
-                'Create duplicate of duplicate ellipse for corner transition purposes.
-                myUniverse.getGraphics.DrawEllipse(newPen, secondDuplicatePoint.X, secondDuplicatePoint.Y, radius * 2, radius * 2)
-                myUniverse.getGraphics.FillEllipse(newPen.Brush, secondDuplicatePoint.X, secondDuplicatePoint.Y, radius * 2, radius * 2)
-
-            ElseIf duplicatePoint.X > right_bottom_boundary(0).X - 2 * radius Then 'If the duplicate is going through the bottom-right corner, duplicate the duplicate to the left. DAFAQ M8.
-
-                Dim secondDuplicatePoint As New PointF(duplicatePoint.X - universeWidth + clipOffsetWidth, duplicatePoint.Y)
+                'Calculate second duplicate origin point.
+                Dim secondDuplicatePoint As New PointF(universeWidth + duplicatePoint.X - clipOffsetX, duplicatePoint.Y)
 
                 'Create duplicate of duplicate ellipse for corner transition purposes.
-                myUniverse.getGraphics.DrawEllipse(newPen, secondDuplicatePoint.X, secondDuplicatePoint.Y, radius * 2, radius * 2)
-                myUniverse.getGraphics.FillEllipse(newPen.Brush, secondDuplicatePoint.X, secondDuplicatePoint.Y, radius * 2, radius * 2)
+                universeGraphics.DrawEllipse(newPen, secondDuplicatePoint.X, secondDuplicatePoint.Y, radius * 2, radius * 2)
+                universeGraphics.FillEllipse(newPen.Brush, secondDuplicatePoint.X, secondDuplicatePoint.Y, radius * 2, radius * 2)
+
+            ElseIf center.X + radius > universeWidth Then 'Else if the star is also tunneling to the right, draw a second duplicate in the bottom-left corner.
+
+                'Calculate second duplicate origin point.
+                Dim secondDuplicatePoint As New PointF(duplicatePoint.X - universeWidth + clipOffsetX, duplicatePoint.Y)
+
+                'Create duplicate of duplicate ellipse for corner transition purposes.
+                universeGraphics.DrawEllipse(newPen, secondDuplicatePoint.X, secondDuplicatePoint.Y, radius * 2, radius * 2)
+                universeGraphics.FillEllipse(newPen.Brush, secondDuplicatePoint.X, secondDuplicatePoint.Y, radius * 2, radius * 2)
             End If
 
             star.DuplicatePointBottom = duplicatePoint 'Set star duplicate point.
@@ -656,12 +657,15 @@ Public Class blockForm
         End If
 
     End Sub
-    Private Sub Planet_CheckForLeftTunneling(ByVal planet As Planet, ByVal center As PointF)
+
+    Private Sub Planet_CheckForLeftTunneling(ByVal planet As Planet, ByVal center As PointF, ByVal universeGraphics As Graphics)
+
+        'Remember to add the border width in all of the planet the calculations.
 
         Dim planetHalfWidth As Double = planet.GetHalfSize
 
         'Left tunneling.
-        If center.X - planetHalfWidth - planetBorderWidth < clipOffsetX And Not planet.TransitionDirection.Contains("r") Then
+        If planet.GetVertices(0).X < clipOffsetX + planetBorderWidth And Not planet.TransitionDirection.Contains("r") Then
 
             'Add transition direction.
             If Not planet.TransitionDirection.Contains("l") Then
@@ -669,23 +673,24 @@ Public Class blockForm
             End If
 
             'Create duplicate planet for transition purposes.
-            Dim duplicatePoint = New PointF(planet.GetVertices(0).X + universeWidth - clipOffsetWidth, planet.GetVertices(0).Y)
-            DrawDuplicatePlanet(duplicatePoint, planet.Universe.getPen) 'Draw duplicate planet.
+            Dim duplicatePoint = New PointF(planet.GetVertices(0).X + universeWidth - clipOffsetX, planet.GetVertices(0).Y)
+            DrawDuplicatePlanet(duplicatePoint, planet.Universe.getPen, universeGraphics) 'Draw duplicate planet.
 
             planet.DuplicatePointLeft = duplicatePoint 'Set planet duplicate point.
         End If
 
-        'Center of Mass moved. Draw the duplicate ellipse in it's position to preserve the transition.
-        If (center.X < clipOffsetX Or center.X > right_bottom_boundary(0).X - planetHalfWidth - planetBorderWidth) And
-                                                   planet.TransitionDirection.Contains("l") Then
-            'Move the planet, but just once.
-            If center.X < clipOffsetX Then
-                planet.Move(0, "", planet.DuplicatePointLeft.X, planet.DuplicatePointLeft.Y)
-                center = planet.CenterOfMass
-            End If
+        'Move the planet, but just once.
+        If center.X < clipOffsetX Then
+            planet.Move(0, "", planet.DuplicatePointLeft.X, planet.DuplicatePointLeft.Y)
+            center = planet.CenterOfMass
+        End If
 
-            Dim duplicatePoint As PointF = New PointF(planet.GetVertices(0).X - universeWidth + clipOffsetWidth, planet.GetVertices(0).Y) 'Set new point for duplicate planet.
-            DrawDuplicatePlanet(duplicatePoint, planet.Universe.getPen) 'Draw duplicate planet.
+        'Center of Mass moved. Draw the duplicate ellipse in it's position to preserve the transition.
+        If planet.GetVertices(1).X > universeWidth - planetBorderWidth And planet.TransitionDirection.Contains("l") Then
+
+            'Calculate duplicate origin point.
+            Dim duplicatePoint As PointF = New PointF(planet.GetVertices(0).X - universeWidth + clipOffsetX, planet.GetVertices(0).Y)
+            DrawDuplicatePlanet(duplicatePoint, planet.Universe.getPen, universeGraphics) 'Draw duplicate planet.
 
             planet.DuplicatePointLeft = duplicatePoint 'Set planet duplicate point.
 
@@ -698,12 +703,12 @@ Public Class blockForm
         End If
 
     End Sub
-    Private Sub Planet_CheckForRightTunneling(ByVal planet As Planet, ByVal center As PointF)
+    Private Sub Planet_CheckForRightTunneling(ByVal planet As Planet, ByVal center As PointF, ByVal universeGraphics As Graphics)
 
         Dim planetHalfWidth As Double = planet.GetHalfSize
 
         'Right tunneling.
-        If center.X + planetHalfWidth + planetBorderWidth > right_bottom_boundary(0).X And Not planet.TransitionDirection.Contains("l") Then
+        If planet.GetVertices(1).X > universeWidth - planetBorderWidth And Not planet.TransitionDirection.Contains("l") Then
 
             'Add transition direction.
             If Not planet.TransitionDirection.Contains("r") Then
@@ -711,23 +716,24 @@ Public Class blockForm
             End If
 
             'Create duplicate planet for transition purposes.
-            Dim duplicatePoint = New PointF(planet.GetVertices(0).X - universeWidth + clipOffsetWidth, planet.GetVertices(0).Y)
-            DrawDuplicatePlanet(duplicatePoint, planet.Universe.getPen) 'Draw duplicate planet.
+            Dim duplicatePoint = New PointF(planet.GetVertices(0).X - universeWidth + clipOffsetX, planet.GetVertices(0).Y)
+            DrawDuplicatePlanet(duplicatePoint, planet.Universe.getPen, universeGraphics) 'Draw duplicate planet.
 
             planet.DuplicatePointRight = duplicatePoint 'Set planet duplicate point.
         End If
 
-        'Center of Mass moved. Draw the duplicate ellipse in it's position to preserve the transition.
-        If (center.X > right_bottom_boundary(0).X Or center.X < clipOffsetX + planetHalfWidth + planetBorderWidth) And
-                                                     planet.TransitionDirection.Contains("r") Then
-            'Move the planet, but just once.
-            If center.X > right_bottom_boundary(0).X Then
-                planet.Move(0, "", planet.DuplicatePointRight.X, planet.DuplicatePointRight.Y)
-                center = planet.CenterOfMass
-            End If
+        'Move the planet, but just once.
+        If center.X > universeWidth Then
+            planet.Move(0, "", planet.DuplicatePointRight.X, planet.DuplicatePointRight.Y)
+            center = planet.CenterOfMass
+        End If
 
-            Dim duplicatePoint As PointF = New PointF(planet.GetVertices(0).X + universeWidth - clipOffsetWidth, planet.GetVertices(0).Y) 'Set new point for duplicate planet.
-            DrawDuplicatePlanet(duplicatePoint, planet.Universe.getPen)  'Draw duplicate planet.
+        'Center of Mass moved. Draw the duplicate ellipse in it's position to preserve the transition.
+        If planet.GetVertices(0).X < clipOffsetX + planetBorderWidth And planet.TransitionDirection.Contains("r") Then
+
+            'Calculate duplicate origin point.
+            Dim duplicatePoint As PointF = New PointF(planet.GetVertices(0).X + universeWidth - clipOffsetX, planet.GetVertices(0).Y)
+            DrawDuplicatePlanet(duplicatePoint, planet.Universe.getPen, universeGraphics)  'Draw duplicate planet.
 
             planet.DuplicatePointRight = duplicatePoint 'Set planet duplicate point.
 
@@ -741,12 +747,12 @@ Public Class blockForm
 
 
     End Sub
-    Private Sub Planet_CheckForTopTunneling(ByVal planet As Planet, ByVal center As PointF)
+    Private Sub Planet_CheckForTopTunneling(ByVal planet As Planet, ByVal center As PointF, ByVal universeGraphics As Graphics)
 
         Dim planetHalfWidth As Double = planet.GetHalfSize
 
         'Top tunneling.
-        If center.Y - planetHalfWidth - planetBorderWidth < clipOffsetY And Not planet.TransitionDirection.Contains("b") Then
+        If planet.GetVertices(0).Y < clipOffsetY + planetBorderWidth And Not planet.TransitionDirection.Contains("b") Then
 
             'Add transition direction.
             If Not planet.TransitionDirection.Contains("t") Then
@@ -754,60 +760,52 @@ Public Class blockForm
             End If
 
             'Create duplicate planet for transition purposes.
-            Dim duplicatePoint = New PointF(planet.GetVertices(0).X, planet.GetVertices(0).Y + universeHeight - clipOffsetHeight)
-            DrawDuplicatePlanet(duplicatePoint, planet.Universe.getPen) 'Draw duplicate planet.
+            Dim duplicatePoint = New PointF(planet.GetVertices(0).X, planet.GetVertices(0).Y + universeHeight - clipOffsetY)
+            DrawDuplicatePlanet(duplicatePoint, planet.Universe.getPen, universeGraphics) 'Draw duplicate planet.
 
-            'If the planet is going through top-left corner, draw duplicate on bottom-left corner.
-            If center.X < clipOffsetX + planetHalfWidth + planetBorderWidth Then
+            'If the planet is also tunneling to the left, draw a second duplicate in the bottom-right corner.
+            If planet.GetVertices(0).X < clipOffsetX + planetBorderWidth Then
 
-                'If the duplicate is going through the top-left corner, duplicate the duplicate to the right. DAFAQ M8.
-                If duplicatePoint.X < clipOffsetX + planetBorderWidth Then
+                'Calculate second duplicate origin point.
+                Dim secondDuplicatePoint As New PointF(duplicatePoint.X + universeWidth - clipOffsetX, duplicatePoint.Y)
+                DrawDuplicatePlanet(secondDuplicatePoint, planet.Universe.getPen, universeGraphics) 'Draw duplicate of duplicate planet.
 
-                    'Create duplicate of duplicate planet for corner transition purposes.
-                    Dim secondDuplicatePoint As New PointF(duplicatePoint.X + universeWidth - clipOffsetWidth, duplicatePoint.Y)
-                    DrawDuplicatePlanet(secondDuplicatePoint, planet.Universe.getPen) 'Draw duplicate of duplicate planet.
-                End If
+            ElseIf planet.GetVertices(1).X > universeWidth - planetBorderWidth Then 'Else if the planet is also tunneling to the right, draw a second duplicate in the bottom-left corner.
 
-            ElseIf center.X > right_bottom_boundary(0).X - planetHalfWidth - planetBorderWidth Then 'Else if the planet is going through the top-right corner, draw duplicate on bottom-right corner.
+                'Create duplicate of duplicate planet for corner transition purposes.
+                Dim secondDuplicatePoint As New PointF(duplicatePoint.X - universeWidth + clipOffsetX, duplicatePoint.Y)
+                DrawDuplicatePlanet(secondDuplicatePoint, planet.Universe.getPen, universeGraphics) 'Draw duplicate of duplicate planet.
 
-                'If the duplicate is going through the bottom-right corner, duplicate the duplicate to the left. DAFAQ M8.
-                If duplicatePoint.X > right_bottom_boundary(0).X - planetBorderWidth Then
-
-                    'Create duplicate of duplicate planet for corner transition purposes.
-                    Dim secondDuplicatePoint As New PointF(duplicatePoint.X - universeWidth + clipOffsetWidth, duplicatePoint.Y)
-                    DrawDuplicatePlanet(secondDuplicatePoint, planet.Universe.getPen) 'Draw duplicate of duplicate planet.
-                End If
             End If
 
             planet.DuplicatePointTop = duplicatePoint 'Set planet duplicate point.
         End If
 
+        'Move the planet, but just once.
+        If center.Y < clipOffsetY Then
+            planet.Move(0, "", planet.DuplicatePointTop.X, planet.DuplicatePointTop.Y)
+            center = planet.CenterOfMass
+        End If
+
         'Center of Mass moved. Draw the duplicate ellipse in it's position to preserve the transition.
-        If (center.Y < clipOffsetY Or center.Y > right_bottom_boundary(0).Y - planetHalfWidth - planetBorderWidth) And
-                                                planet.TransitionDirection.Contains("t") Then
+        If planet.GetVertices(2).Y > universeHeight - planetBorderWidth And planet.TransitionDirection.Contains("t") Then
 
-            'Move the planet, but just once.
-            If center.Y < clipOffsetY Then
-                planet.Move(0, "", planet.DuplicatePointTop.X, planet.DuplicatePointTop.Y)
-                center = planet.CenterOfMass
-            End If
+            'Calculate duplicate origin point.
+            Dim duplicatePoint = New PointF(planet.GetVertices(0).X, planet.GetVertices(0).Y - universeHeight + clipOffsetY)
+            DrawDuplicatePlanet(duplicatePoint, planet.Universe.getPen, universeGraphics) 'Draw duplicate planet.
 
-            Dim duplicatePoint = New PointF(planet.GetVertices(0).X, planet.GetVertices(0).Y - universeHeight + clipOffsetHeight) 'Set new point for duplicate planet.
-            DrawDuplicatePlanet(duplicatePoint, planet.Universe.getPen) 'Draw duplicate planet.
+            'If the planet is also tunneling to the left, draw a second duplicate in the top-right corner.
+            If planet.GetVertices(0).X < clipOffsetX + planetBorderWidth Then
 
-            'If the duplicate is going through the upper-left corner, duplicate the duplicate to the right. DAFAQ M8.
-            If duplicatePoint.X < clipOffsetX + planetBorderWidth Then
+                'Calculate second duplicate origin point.
+                Dim secondDuplicatePoint As New PointF(planet.GetVertices(0).X + universeWidth - clipOffsetX, duplicatePoint.Y)
+                DrawDuplicatePlanet(secondDuplicatePoint, planet.Universe.getPen, universeGraphics) 'Draw duplicate of duplicate planet.
 
-                'Create duplicate of duplicate planet for corner transition purposes.
-                Dim secondDuplicatePoint As New PointF(duplicatePoint.X + universeWidth - clipOffsetWidth, duplicatePoint.Y)
-                DrawDuplicatePlanet(secondDuplicatePoint, planet.Universe.getPen) 'Draw duplicate of duplicate planet.
+            ElseIf planet.GetVertices(1).X > universeWidth - planetBorderWidth Then  'Else if the planet is also tunneling to the right, draw a second duplicate in the top-left corner.
 
-            ElseIf duplicatePoint.X > right_bottom_boundary(0).X - planetHalfWidth - planetBorderWidth Then 'If the duplicate is going through the upper-right corner, duplicate the duplicate to the left. DAFAQ M8.
-
-                Dim secondDuplicatePoint As New PointF(duplicatePoint.X - universeWidth + clipOffsetWidth, duplicatePoint.Y)
-
-                'Create duplicate of duplicate planet for corner transition purposes.
-                DrawDuplicatePlanet(secondDuplicatePoint, planet.Universe.getPen)
+                'Calculate second duplicate origin point.
+                Dim secondDuplicatePoint As New PointF(duplicatePoint.X - universeWidth + clipOffsetX, duplicatePoint.Y)
+                DrawDuplicatePlanet(secondDuplicatePoint, planet.Universe.getPen, universeGraphics)
 
             End If
 
@@ -820,12 +818,12 @@ Public Class blockForm
             End If
         End If
     End Sub
-    Private Sub Planet_CheckForBottomTunneling(ByVal planet As Planet, ByVal center As PointF)
+    Private Sub Planet_CheckForBottomTunneling(ByVal planet As Planet, ByVal center As PointF, ByVal universeGraphics As Graphics)
 
         Dim planetHalfWidth As Double = planet.GetHalfSize
 
         'Bottom tunneling.
-        If center.Y + planetHalfWidth + planetBorderWidth > right_bottom_boundary(0).Y And Not planet.TransitionDirection.Contains("t") Then
+        If planet.GetVertices(2).Y > universeHeight - planetBorderWidth And Not planet.TransitionDirection.Contains("t") Then
 
             'Add transition direction.
             If Not planet.TransitionDirection.Contains("b") Then
@@ -833,61 +831,52 @@ Public Class blockForm
             End If
 
             'Create duplicate planet for transition purposes.
-            Dim duplicatePoint = New PointF(planet.GetVertices(0).X, planet.GetVertices(0).Y - universeHeight + clipOffsetHeight)
-            DrawDuplicatePlanet(duplicatePoint, planet.Universe.getPen) 'Draw duplicate planet.
+            Dim duplicatePoint = New PointF(planet.GetVertices(0).X, planet.GetVertices(0).Y - universeHeight + clipOffsetY)
+            DrawDuplicatePlanet(duplicatePoint, planet.Universe.getPen, universeGraphics) 'Draw duplicate planet.
 
-            'If the planet is going through bottom-left corner, draw duplicate on top-left corner.
-            If center.X < clipOffsetX + planetHalfWidth + planetBorderWidth Then
+            'If the planet is also tunneling to the left, draw a second duplicate in the bottom-right corner.
+            If planet.GetVertices(0).X < clipOffsetX + planetBorderWidth Then
 
-                'If the duplicate is going through the top-left corner, duplicate the duplicate to the top-right corner. DAFAQ M8.
-                If duplicatePoint.X < clipOffsetX + planetBorderWidth Then
+                'Calculate second duplicate origin point.
+                Dim secondDuplicatePoint As New PointF(duplicatePoint.X + universeWidth - clipOffsetX, duplicatePoint.Y)
+                DrawDuplicatePlanet(secondDuplicatePoint, planet.Universe.getPen, universeGraphics) 'Draw duplicate of duplicate planet.
 
-                    'Create duplicate of duplicate planet for corner transition purposes.
-                    Dim secondDuplicatePoint As New PointF(duplicatePoint.X + universeWidth - clipOffsetWidth, duplicatePoint.Y)
-                    DrawDuplicatePlanet(secondDuplicatePoint, planet.Universe.getPen) 'Draw duplicate of duplicate planet.
-                End If
+            ElseIf planet.GetVertices(1).X > universeWidth Then 'Else if the planet is going through the bottom-right corner, draw duplicate on top-right corner.
 
-            ElseIf center.X > right_bottom_boundary(0).X - planetHalfWidth - planetBorderWidth Then 'Else if the planet is going through the bottom-right corner, draw duplicate on top-right corner.
+                'Calculate second duplicate origin point.
+                Dim secondDuplicatePoint As New PointF(duplicatePoint.X - universeWidth + clipOffsetX, duplicatePoint.Y)
+                DrawDuplicatePlanet(secondDuplicatePoint, planet.Universe.getPen, universeGraphics) 'Draw duplicate of duplicate planet.
 
-                'If the duplicate is going through the top-right corner, duplicate the duplicate to the top-left corner. DAFAQ M8.
-                If duplicatePoint.X > right_bottom_boundary(0).X - planetBorderWidth + 1 Then
-
-                    'Create duplicate of duplicate planet for corner transition purposes.
-                    Dim secondDuplicatePoint As New PointF(duplicatePoint.X - universeWidth + clipOffsetWidth, duplicatePoint.Y)
-                    DrawDuplicatePlanet(secondDuplicatePoint, planet.Universe.getPen) 'Draw duplicate of duplicate planet.
-                End If
             End If
 
             planet.DuplicatePointBottom = duplicatePoint 'Set planet duplicate point.
         End If
 
+        'Move the planet, but just once.
+        If center.Y > universeHeight Then
+            planet.Move(0, "", planet.DuplicatePointBottom.X, planet.DuplicatePointBottom.Y)
+            center = planet.CenterOfMass
+        End If
+
         'Center of Mass moved. Draw the duplicate ellipse in it's position to preserve the transition.
-        If (center.Y > right_bottom_boundary(0).Y Or center.Y < clipOffsetY + planetHalfWidth + planetBorderWidth) And
-                                                       planet.TransitionDirection.Contains("b") Then
+        If planet.GetVertices(0).Y < clipOffsetY + planetBorderWidth And planet.TransitionDirection.Contains("b") Then
 
-            'Move the planet, but just once.
-            If center.Y > right_bottom_boundary(0).Y Then
-                planet.Move(0, "", planet.DuplicatePointBottom.X, planet.DuplicatePointBottom.Y)
-                center = planet.CenterOfMass
-            End If
+            'Calculate duplicate origin point.
+            Dim duplicatePoint = New PointF(planet.GetVertices(0).X, planet.GetVertices(0).Y + universeHeight - clipOffsetY)
+            DrawDuplicatePlanet(duplicatePoint, planet.Universe.getPen, universeGraphics) 'Draw duplicate planet.
 
-            Dim duplicatePoint = New PointF(planet.GetVertices(0).X, planet.GetVertices(0).Y + universeHeight - clipOffsetHeight) 'Set new point for duplicate planet.
-            DrawDuplicatePlanet(duplicatePoint, planet.Universe.getPen) 'Draw duplicate planet.
+            'If the planet is also tunneling to the left, draw a second duplicate in the top-right corner.
+            If planet.GetVertices(0).X < clipOffsetX + planetBorderWidth Then
 
-            'If the duplicate is going through the bottom-left corner, duplicate the duplicate to the right. DAFAQ M8.
-            If duplicatePoint.X < clipOffsetX + planetBorderWidth Then
+                'Calculate second duplicate origin point.
+                Dim secondDuplicatePoint As New PointF(duplicatePoint.X + universeWidth - clipOffsetX, duplicatePoint.Y)
+                DrawDuplicatePlanet(secondDuplicatePoint, planet.Universe.getPen, universeGraphics)
 
-                Dim secondDuplicatePoint As New PointF(duplicatePoint.X + universeWidth - clipOffsetWidth, duplicatePoint.Y)
+            ElseIf planet.GetVertices(1).X > universeWidth - planetBorderWidth Then 'Else if the planet is also tunneling to the right, draw a second duplicate in the top-left corner.
 
-                'Create duplicate of duplicate planet for corner transition purposes.
-                DrawDuplicatePlanet(secondDuplicatePoint, planet.Universe.getPen)
-
-            ElseIf duplicatePoint.X > right_bottom_boundary(0).X - planet.Size - planetBorderWidth Then 'If the duplicate is going through the bottom-right corner, duplicate the duplicate to the left. DAFAQ M8.
-
-                Dim secondDuplicatePoint As New PointF(duplicatePoint.X - universeWidth + clipOffsetWidth, duplicatePoint.Y)
-
-                'Create duplicate of duplicate planet for corner transition purposes.
-                DrawDuplicatePlanet(secondDuplicatePoint, planet.Universe.getPen)
+                'Calculate second duplicate origin point.
+                Dim secondDuplicatePoint As New PointF(duplicatePoint.X - universeWidth + clipOffsetX, duplicatePoint.Y)
+                DrawDuplicatePlanet(secondDuplicatePoint, planet.Universe.getPen, universeGraphics)
 
             End If
 
@@ -898,9 +887,11 @@ Public Class blockForm
             If planet.TransitionDirection.Contains("b") Then
                 planet.TransitionDirection = planet.TransitionDirection.Remove(planet.TransitionDirection.IndexOf("b"), 1) 'Delete transition direction.
             End If
+
         End If
+
     End Sub
-    Private Sub DrawDuplicatePlanet(ByVal startingVertex As PointF, ByVal planePen As Pen)
+    Private Sub DrawDuplicatePlanet(ByVal startingVertex As PointF, ByVal planePen As Pen, ByVal universeGraphics As Graphics)
 
         Dim duplicatePlanetVertices As New List(Of PointF)
 
@@ -913,9 +904,9 @@ Public Class blockForm
         'Draw square.
         For i = 0 To duplicatePlanetVertices.Count - 1
             If i = duplicatePlanetVertices.Count - 1 Then
-                myUniverse.getGraphics.DrawLine(planePen, duplicatePlanetVertices(i), duplicatePlanetVertices(0)) 'Draw last line.
+                universeGraphics.DrawLine(planePen, duplicatePlanetVertices(i), duplicatePlanetVertices(0)) 'Draw last line.
             Else
-                myUniverse.getGraphics.DrawLine(planePen, duplicatePlanetVertices(i), duplicatePlanetVertices(i + 1)) 'Draw line.
+                universeGraphics.DrawLine(planePen, duplicatePlanetVertices(i), duplicatePlanetVertices(i + 1)) 'Draw line.
             End If
         Next
 
@@ -942,7 +933,7 @@ Public Class blockForm
         myBrush = New SolidBrush(Color.FromArgb(rand.Next(0, 255), rand.Next(0, 255), rand.Next(0, 255)))
 
         'Initialize and add new star to the universe.
-        newstar.Init(myUniverse, defaultUniverseTransformation, data(0), starRadius, starBorderWidth, myBrush.Color, starType, data(1).X, data(1).Y)
+        newstar.Init(myUniverse, myUniverseMatrix, data(0), data(2), starRadius, starBorderWidth, myBrush.Color, starType, data(1).X, data(1).Y)
 
         myUniverse.AddStar(newstar)
         AddObjStatsLabel(newstar)
@@ -979,7 +970,7 @@ Public Class blockForm
         PlanetArrayInUseFlag = True
 
         'Initialize and add new planet to planet World.
-        newplanet.Init(myUniverse, defaultUniverseTransformation, data(0), planetSize, planetBorderWidth, planetColor, data(1).X, data(1).Y)
+        newplanet.Init(myUniverse, myUniverseMatrix, data(0), data(2), planetSize, planetBorderWidth, planetColor, data(1).X, data(1).Y)
 
         myUniverse.AddPlanet(newplanet)
         AddObjStatsLabel(newplanet)
@@ -1196,42 +1187,6 @@ Public Class blockForm
 
     '----------------------------------------------------------------------------------------------------------------------
     '----------------------------------------------------------------------------------------------------------------------
-    '----------------------------------------------------------------------------------------------------------------------
-    'Custom Functions.
-    '----------------------------------------------------------------------------------------------------------------------
-    '----------------------------------------------------------------------------------------------------------------------
-
-    'Get a new point based on a scaling factor and an offset point.
-    'This is needed when we zoom in/out.
-
-    Private Function getScaledPoint(ByVal p As Point, ByVal scale As Double, ByVal offset As PointF) As Point
-
-        Dim point() As Point = {p}
-        'scale = Math.Round(scale, 5)
-
-        'Get inverted matrix.
-        Dim matrixInverse As Drawing2D.Matrix = defaultUniverseTransformation.Clone
-        matrixInverse.Invert()
-
-        'Get new point using the inverted matrix (was trying to do it manually by pure math, took me days to figure out I can use matrix properties).
-        matrixInverse.TransformPoints(point)
-
-        'If scale > 1.0 Then
-        '    'p.X = p.X - p.X * (scale - 1.0) - offset.X 'Correct almost, i think.
-        '    p.X = p.X - (p.X + offset.X) / scale
-        '    p.Y = p.Y - (p.Y + offset.Y) / scale
-        'Else
-        '    p.X = p.X + (p.X - offset.X) * (1.0 - scale) 'Wrong.
-        '    p.Y = p.Y + (p.Y - offset.Y) * (1.0 - scale)
-        'End If
-
-        Return point(0)
-
-    End Function
-
-    '----------------------------------------------------------------------------------------------------------------------
-    '----------------------------------------------------------------------------------------------------------------------
-    '----------------------------------------------------------------------------------------------------------------------
     'Form/click/resize/keydown events.
     '----------------------------------------------------------------------------------------------------------------------
     '----------------------------------------------------------------------------------------------------------------------
@@ -1243,7 +1198,13 @@ Public Class blockForm
             mousePoint = PointToClient(MousePosition)
             absoluteMousePoint = mousePoint 'Save absolute point before scaling it.
 
-            mousePoint = getScaledPoint(mousePoint, zoomValue, New PointF(defaultUniverseTransformation.OffsetX, defaultUniverseTransformation.OffsetY))
+
+            Dim points() As PointF = {mousePoint}
+            Dim inverseMatrix = myUniverseMatrix.Clone
+            inverseMatrix.Invert()
+            inverseMatrix.TransformPoints(points)
+
+            mousePoint = points(0)
 
             'Check always with absolute point.
             'If mouse out of boundaries, do nothing.
@@ -1262,13 +1223,14 @@ Public Class blockForm
             CheckPlanetContinuousMode(e) 'Check for planet continuous mode creation.
             CheckDragging() 'Check for universe dragging.
             ObjectHover() 'Check for object hover.
+
         End If
 
     End Sub
     Private Sub blockForm_Click(sender As Object, e As EventArgs) Handles Me.Click
 
         'Do nothing until offset changes when dragging.
-        If oldOffset <> New Point(clipOffsetX, clipOffsetY) Then
+        If oldOffset <> New PointF(clipOffsetX, clipOffsetY) And dragStart Then
             Exit Sub
         End If
 
@@ -1281,14 +1243,14 @@ Public Class blockForm
             If absoluteMousePoint.X + newPlanetHalfSize + newPlanetBorderWidth > myUniverse.getImage.Width Or
                 absoluteMousePoint.Y + newPlanetHalfSize + newPlanetBorderWidth > myUniverse.getImage.Height Or
                 absoluteMousePoint.X - newPlanetHalfSize - newPlanetBorderWidth < defaultClipOffset - 1 Or
-                mousePoint.Y - newPlanetHalfSize - newPlanetBorderWidth < left_top_boundary(0).Y - 1 Then
+                mousePoint.Y - newPlanetHalfSize - newPlanetBorderWidth < clipOffsetY - 1 Then 'left_top_boundary(0).Y
 
                 Exit Sub
 
             End If
 
             threadList.Add(New Thread(AddressOf createplanet)) 'Each planet is handled by a different thread.
-            threadList.Last.Start(New PointF() {New PointF(mousePoint.X, mousePoint.Y), New PointF(numPlanetParamXVel.Value, numPlanetParamYVel.Value)}) 'Start thread.
+            threadList.Last.Start(New PointF() {New PointF(mousePoint.X, mousePoint.Y), New PointF(numPlanetParamXVel.Value, numPlanetParamYVel.Value), absoluteMousePoint}) 'Start thread.
 
         ElseIf creationMode.Equals("s") And Not hover Then
 
@@ -1305,7 +1267,7 @@ Public Class blockForm
             End If
 
             threadList.Add(New Thread(AddressOf createstar)) 'Each star is handled by a different thread.
-            threadList.Last.Start(New PointF() {New PointF(mousePoint.X, mousePoint.Y), New PointF(numStarParamXVel.Value, numStarParamYVel.Value)}) 'Start thread.
+            threadList.Last.Start(New PointF() {New PointF(mousePoint.X, mousePoint.Y), New PointF(numStarParamXVel.Value, numStarParamYVel.Value), absoluteMousePoint}) 'Start thread.
 
         Else
             ObjectSelected() 'We selected an object.
@@ -1316,12 +1278,14 @@ Public Class blockForm
 
         'If mouse out of boundaries, do nothing.
         If absoluteMousePoint.X >= imageWidth Or absoluteMousePoint.Y >= imageHeight Or
-           absoluteMousePoint.X < defaultClipOffset Or absoluteMousePoint.Y < defaultClipOffset And
-           Not onFrame Then
+           absoluteMousePoint.X < defaultClipOffset Or absoluteMousePoint.Y < defaultClipOffset Or
+           onFrame Then
 
             Exit Sub
 
         End If
+
+        zooming = True
 
         'Zoom IN/OUT. 
 
@@ -1336,18 +1300,20 @@ Public Class blockForm
 
                 zoomValue += zoomStep 'Increment by one step. Zoom IN.
                 zoomValue = Math.Round(zoomValue, 5) 'Round value in case of trailing 0-9.
-                zoomUniverse()
+                zoomUniverse(1)
 
-            ElseIf e.Delta = -120 And zoomValue > zoomStep Then
+            ElseIf e.Delta = -120 And zoomValue > -10 Then
 
                 zoomValue -= zoomStep 'Decrement by one step. Zoom OUT.
                 zoomValue = Math.Round(zoomValue, 5) 'Round value in case of trailing 0-9.
-                zoomUniverse()
+                zoomUniverse(0)
 
             End If
         Catch ex As Exception
             Console.WriteLine(ex.ToString)
         End Try
+
+        zooming = False
 
     End Sub
     Private Sub blockForm_MouseDown(sender As Object, e As MouseEventArgs) Handles Me.MouseDown
@@ -1402,6 +1368,8 @@ Public Class blockForm
 
         If Not ctrlKeyDown And mouseIsDown And dragStart And dragPoint <> absoluteMousePoint And counter > 5 And Not onFrame Then
 
+            dragging = True
+
             If UniversePaused = False Then
                 UniversePaused = True
                 UniversePausedForDragging = True
@@ -1419,6 +1387,8 @@ Public Class blockForm
 
             'Update origin point.
             dragPoint = absoluteMousePoint
+
+            dragging = False
 
         End If
 
@@ -1627,7 +1597,7 @@ Public Class blockForm
 
         'Add and initialize new star to universe.
         myUniverse.AddStar(New Star)
-        myUniverse.Stars.Last.Init(myUniverse, defaultUniverseTransformation, pos, starRadius, starBorderWidth, myBrush.Color, starType, 0, -5)
+        myUniverse.Stars.Last.Init(myUniverse, defaultUniverseMatrix, pos, pos, starRadius, starBorderWidth, myBrush.Color, starType, 0, -5)
         AddObjStatsLabel(myUniverse.Stars.Last)
         'Set new random color.
         myBrush = New SolidBrush(Color.FromArgb(rand.Next(0, 255), rand.Next(0, 255), rand.Next(0, 255)))
@@ -1641,7 +1611,7 @@ Public Class blockForm
 
         'Add and initialize new star to universe.
         myUniverse.AddStar(New Star)
-        myUniverse.Stars.Last.Init(myUniverse, defaultUniverseTransformation, pos3, starRadius, starBorderWidth, myBrush.Color, starType, 0, 5)
+        myUniverse.Stars.Last.Init(myUniverse, defaultUniverseMatrix, pos3, pos3, starRadius, starBorderWidth, myBrush.Color, starType, 0, 5)
         AddObjStatsLabel(myUniverse.Stars.Last)
 
         'Set new random color.
@@ -1661,62 +1631,61 @@ Public Class blockForm
         'End While
 
     End Sub
-    Private Sub zoomUniverse()
+    Private Sub zoomUniverse(ByVal zoomIn As Boolean)
 
         If formLoaded And Not onFrame Then
 
-            Dim reverseScaleMatrix As Drawing2D.Matrix = New Drawing2D.Matrix(1 / defaultUniverseTransformation.Elements(0), 0, 0,
-                                                                              1 / defaultUniverseTransformation.Elements(0), 0, 0)
-            Dim cloneMatrix = myUniverse.getGraphics.Transform.Clone
+            Dim zoomPoint As PointF = absoluteMousePoint
+
+            'If an object is selected, make its center the zoom origin point.
+            If selectedObject IsNot Nothing Then
+
+                'We need the center of the object relative to the universe image.
+                Dim relativeCenter() As PointF = {selectedObject.CenterOfMass}
+
+                myUniverseMatrix.TransformPoints(relativeCenter)
+                zoomPoint = relativeCenter(0)
+
+            End If
 
             'Apply transformations. Move -> Scale -> Move back
-            cloneMatrix.Translate(-absoluteMousePoint.X, -absoluteMousePoint.Y, Drawing2D.MatrixOrder.Append) 'Translate to opposite original point.
+            myUniverseMatrix.Translate(-zoomPoint.X, -zoomPoint.Y, Drawing2D.MatrixOrder.Append) 'Translate to opposite original point.
 
-            'We multiply with a matrix with the inverse scale and then we multiply again with the correct value.
-            'In the first multiplication the scales cancel out, leaving one (1). E.g: 0.5 * (1 / 0.5) = 1
-            'Then we just multiply with the correct zoom value to get the expected result.
-            cloneMatrix.Multiply(reverseScaleMatrix, Drawing2D.MatrixOrder.Append)
-            cloneMatrix.Multiply(New Drawing2D.Matrix(zoomValue, 0, 0, zoomValue, 0, 0), Drawing2D.MatrixOrder.Append)
+            'Scale.
+            If zoomIn Then
+                myUniverseMatrix.Scale(1 + zoomStep, 1 + zoomStep, Drawing2D.MatrixOrder.Append)
+            Else
+                myUniverseMatrix.Scale(1 / (1 + zoomStep), 1 / (1 + zoomStep), Drawing2D.MatrixOrder.Append) 'Scale.
+            End If
 
             'Because sometimes the above scaling method leaves trailing nines (9) and zeros (0), we manually set it to the correct zoom value.
             'After the scaling of course. This changes the width and height of the Clip rectangle by whatever the rounding error was (pretty miniscule).
-            Dim offset As New PointF(cloneMatrix.OffsetX, cloneMatrix.OffsetY) 'Get offset.
-            cloneMatrix = New Drawing2D.Matrix(zoomValue, 0, 0, zoomValue, offset.X, offset.Y) 'Set new matrix with proper scale.
+            'cloneMatrix = New Drawing2D.Matrix(zoomValue, 0, 0, zoomValue, cloneMatrix.OffsetX, cloneMatrix.OffsetY) 'Set new matrix with proper scale.
+            myUniverseMatrix.Translate(zoomPoint.X, zoomPoint.Y, Drawing2D.MatrixOrder.Append) 'Translate it to original point.
 
-            cloneMatrix.Translate(absoluteMousePoint.X, absoluteMousePoint.Y, Drawing2D.MatrixOrder.Append) 'Translate it to original point.
-            myUniverse.getGraphics.Transform = cloneMatrix.Clone 'Apply transformation to graphics.
+            'Apply transformation to graphics.
+            myUniverse.getGraphics.Transform = myUniverseMatrix.Clone
 
-            'Get new clipbounds.
-            Dim clipBounds As RectangleF = myUniverse.getGraphics.ClipBounds
+            'Access graphics object only once to avoid "object in use" exceptions.
+            Dim universeGraphics As Graphics = myUniverse.getGraphics
 
-            'Update the universe and give the signal to update it's objects. (new clipOffset locations etc.)
-            myUniverse.ResizeUniverse(clipBounds, myUniverse.getGraphics.Transform.Clone)
+            'Transform original width and height so we can use them as limits to our new transformation.
+            Dim points() As PointF = {New PointF(defaultUniverseWidth - 1, defaultUniverseHeight - 1)}
+            Dim inverseMatrix = myUniverseMatrix.Clone
+            inverseMatrix.Invert()
+            inverseMatrix.TransformPoints(points)
 
-            'Update local values.
-            defaultUniverseTransformation = cloneMatrix.Clone
+            'Update clip coordinates. Notice the clip limits don't need to be transformed since they already are.
+            clipOffsetX = universeGraphics.ClipBounds.X
+            clipOffsetY = universeGraphics.ClipBounds.Y
+            universeWidth = points(0).X
+            universeHeight = points(0).Y
 
-            clipOffsetX = clipBounds.X
-            clipOffsetY = clipBounds.Y
-            universeWidth = myUniverse.getWidth()
-            universeHeight = myUniverse.getHeight()
-
-            'Reset boundaries.
-            right_bottom_boundary(0) = New PointF(defaultUniverseWidth - 1, defaultUniverseHeight - 1)
-            left_top_boundary(0) = New PointF(0, 0)
-
-            'Transform boundaries.
-            'cloneMatrix.Invert()
-            cloneMatrix.TransformPoints(left_top_boundary)
-            cloneMatrix.TransformPoints(right_bottom_boundary)
-            clipOffsetWidth = Math.Abs(clipOffsetX - left_top_boundary(0).X) 'New clip offsetX width.
-            clipOffsetHeight = Math.Abs(clipOffsetY - left_top_boundary(0).Y) 'New clip offsetY width.
-
-            myUniverse.SetRightBottomBoundary(right_bottom_boundary(0))
-            myUniverse.SetLeftTopBoundary(left_top_boundary(0))
+            'Give the signal to the universe to update its objects. (new clipOffset locations etc.)
+            myUniverse.ResizeUniverse(universeGraphics.ClipBounds.Location, points(0), myUniverseMatrix.Clone)
 
             Dim s As New MouseEventArgs(MouseButtons.None, 0, 0, 0, 0) 'Init empty mouse event.
             Me.OnMouseMove(s) 'Update UI points.
-            InvalidateImage() 'Refresh form.
 
         End If
 
@@ -1728,40 +1697,35 @@ Public Class blockForm
             Dim offsetX As Double = endPoint.X - originPoint.X
             Dim offsetY As Double = endPoint.Y - originPoint.Y
 
+            Dim newMatrix As Drawing2D.Matrix = myUniverseMatrix.Clone
+
             'Move universe based on offset.
-            myUniverse.getGraphics.TranslateTransform(offsetX, offsetY, Drawing2D.MatrixOrder.Append)
+            newMatrix.Translate(offsetX, offsetY, Drawing2D.MatrixOrder.Append)
 
-            'Save new transformation.
-            Dim cloneMatrix = myUniverse.getGraphics.Transform.Clone
+            'Apply transformation to graphics.
+            myUniverse.getGraphics.Transform = newMatrix.Clone
 
-            'Get new clipbounds.
-            Dim clipBounds As RectangleF = myUniverse.getGraphics.ClipBounds
+            'Update local vars.
+            myUniverseMatrix = newMatrix.Clone
+            totalDragOffset.X += offsetX
+            totalDragOffset.Y += offsetY
+            numStarParamXVel.Value = totalDragOffset.X
+            numStarParamYVel.Value = totalDragOffset.Y
 
-            'Update the universe and give the signal to update it's objects. (new clipOffset locations etc.)
-            myUniverse.ResizeUniverse(clipBounds, myUniverse.getGraphics.Transform.Clone)
+            'Update clip coordinates. We don't need to transform anything since it's a simple translate transformation.
+            clipOffsetX -= offsetX
+            clipOffsetY -= offsetY
+            universeWidth -= offsetX
+            universeHeight -= offsetY
 
-            'Update local values.
-            defaultUniverseTransformation = cloneMatrix.Clone
-            clipOffsetX = clipBounds.X
-            clipOffsetY = clipBounds.Y
-
-            'Reset boundaries.
-            right_bottom_boundary(0) = New PointF(defaultUniverseWidth - 1, defaultUniverseHeight - 1)
-            left_top_boundary(0) = New PointF(0, 0)
-
-            'Transform boundaries.
-            cloneMatrix.Invert()
-            cloneMatrix.TransformPoints(left_top_boundary)
-            cloneMatrix.TransformPoints(right_bottom_boundary)
-            clipOffsetWidth = Math.Abs(clipOffsetX - left_top_boundary(0).X) 'New clip offsetX width.
-            clipOffsetHeight = Math.Abs(clipOffsetY - left_top_boundary(0).Y) 'New clip offsetY height.
-
-            myUniverse.SetRightBottomBoundary(right_bottom_boundary(0))
-            myUniverse.SetLeftTopBoundary(left_top_boundary(0))
+            'Give the signal to the universe to update its objects. (new clipOffset locations etc.)
+            myUniverse.ResizeUniverse(New PointF(clipOffsetX, clipOffsetY), New PointF(universeWidth, universeHeight), myUniverseMatrix.Clone)
 
             Dim s As New MouseEventArgs(MouseButtons.None, 0, 0, 0, 0) 'Init empty mouse event.
             Me.OnMouseMove(s) 'Update UI points.
+
         End If
+
     End Sub
 
     Private Sub btnPauseUniverse_Click(sender As Object, e As EventArgs) Handles btnPauseUniverse.Click
@@ -1778,8 +1742,6 @@ Public Class blockForm
 
     End Sub
 End Class
-
-
 
 
 'Friend Class Vector

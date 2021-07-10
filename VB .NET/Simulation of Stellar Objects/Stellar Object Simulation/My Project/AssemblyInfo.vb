@@ -8,10 +8,10 @@ Imports System.Runtime.InteropServices
 
 ' Review the values of the assembly attributes
 
-<Assembly: AssemblyTitle("Stellar Object Simularion")>
+<Assembly: AssemblyTitle("Stellar Object Simulation")>
 <Assembly: AssemblyDescription("")>
 <Assembly: AssemblyCompany("")>
-<Assembly: AssemblyProduct("Stellar Object Simularion")>
+<Assembly: AssemblyProduct("Stellar Object Simulation")>
 <Assembly: AssemblyCopyright("Copyright © 2021")>
 <Assembly: AssemblyTrademark("")>
 

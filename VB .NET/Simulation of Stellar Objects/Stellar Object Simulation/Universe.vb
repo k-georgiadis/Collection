@@ -21,16 +21,11 @@ Public Class Universe
     Private universeOffsetX As Double
     Private universeOffsetY As Double
     Private universeMatrix As Drawing2D.Matrix
+    Private defaultUniverseMatrix As Drawing2D.Matrix
     Private resetOffset As Boolean
 
     Private universeWidth As Integer
     Private universeHeight As Integer
-
-    Private right_bottom_boundary() As PointF
-    Private left_top_boundary() As PointF
-
-    Private universeDPI As Integer
-    Private universeDPIFactor As Double
 
     Private visibleWidth As Integer
     Private visibleHeight As Integer
@@ -88,17 +83,6 @@ Public Class Universe
     Public ReadOnly Property getHeight() As Integer
         Get
             Return universeHeight
-        End Get
-    End Property
-
-    Public ReadOnly Property getRightBottomBoundary() As PointF
-        Get
-            Return right_bottom_boundary(0)
-        End Get
-    End Property
-    Public ReadOnly Property getLeftTopBoundary() As PointF
-        Get
-            Return left_top_boundary(0)
         End Get
     End Property
 
@@ -188,13 +172,11 @@ Public Class Universe
 
         universeGraphics.Clip = New Region(New RectangleF(visibleBounds.Left + universeOffsetX, visibleBounds.Top + universeOffsetY,
                                                           visibleWidth, visibleHeight))
-        'Set boundaries.
-        right_bottom_boundary = {New PointF(universeWidth - 1, universeHeight - 1)}
-        left_top_boundary = {New PointF(0, 0)}
 
         drawTrajectories = drawTraj 'Draw trajectories?
         maxTrajPoints = _maxTrajPoints 'Max number of points used for each trajectory.
         universeDragged = False 'Flag to check if the universe is being dragged.
+
     End Sub
     Friend Sub Live(ByRef starArrayUse As Boolean, ByRef planetArrayUse As Boolean,
                     ByRef paintingStars As Boolean, ByRef paintingPlanets As Boolean)
@@ -210,12 +192,12 @@ Public Class Universe
         starList.Add(newstar)
     End Sub
 
-    Friend Sub SetRightBottomBoundary(ByVal point As PointF)
-        right_bottom_boundary(0) = point
-    End Sub
-    Friend Sub SetLeftTopBoundary(ByVal point As PointF)
-        left_top_boundary(0) = point
-    End Sub
+    'Friend Sub SetRightBottomBoundary(ByVal point As PointF)
+    '    right_bottom_boundary(0) = point
+    'End Sub
+    'Friend Sub SetLeftTopBoundary(ByVal point As PointF)
+    '    left_top_boundary(0) = point
+    'End Sub
     Friend Sub SetDefaultFormWidth(ByVal width As Integer)
         defaultFormWidth = width
     End Sub
@@ -262,8 +244,10 @@ Public Class Universe
         planetArrayUse = True
 
         For Each star In starList.FindAll(Function(s) s.IsMerged = False)
+
             If star.IsMerged Then Continue For 'Check if a star merged while looping.
             star.applyAcceleration(Objects(), gravityConstant)
+
         Next
 
         'Now move them.
@@ -275,7 +259,9 @@ Public Class Universe
             If canBounce And ((universeDragged And star.isPartialVisible) Or Not star.IsOutOfBounds) Then
                 star.CheckForBounce()
             End If
+
         Next
+
         starArrayUse = False
         planetArrayUse = False
 
@@ -284,13 +270,18 @@ Public Class Universe
 
         'Do the same for the planets.
         planetArrayUse = True
+
         Try
             For Each planet In planetList
+
                 If planet.IsMerged = False Then Continue For  'Check if a planet merged while looping.
                 planet.applyAcceleration(starList, gravityConstant)
+
             Next
+
             'Now move them.
             For Each planet In planetList
+
                 If planet.IsMerged = False Then
 
                     Dim newpos As New PointF(planet.VelX, planet.VelY)
@@ -299,23 +290,26 @@ Public Class Universe
                     If canBounce And ((universeDragged And planet.isPartialVisible) Or Not planet.IsOutOfBounds) Then
                         planet.CheckForBounce()
                     End If
+
                 End If
+
             Next
         Catch ex As Exception
             Console.Write(ex.ToString)
         End Try
+
         planetArrayUse = False
 
     End Sub
 
-    Friend Sub ResizeUniverse(ByVal clipBounds As RectangleF, ByVal matrix As Drawing2D.Matrix)
+    Friend Sub ResizeUniverse(ByVal clipOffset As PointF, ByVal universeSize As PointF, ByVal matrix As Drawing2D.Matrix)
 
         'Update local values.
         universeMatrix = matrix
-        universeOffsetX = clipBounds.X
-        universeOffsetY = clipBounds.Y
-        universeWidth = clipBounds.Width
-        universeHeight = clipBounds.Height
+        universeOffsetX = clipOffset.X
+        universeOffsetY = clipOffset.Y
+        universeWidth = universeSize.X
+        universeHeight = universeSize.Y
 
         resetOffset = True
 
@@ -326,6 +320,7 @@ Public Class Universe
         'universeMatrix.Invert() 'This happens for a new universe matrix, every time we zoom/move the universe. In other words, the same matrix won't be inverted twice or more.
 
         For Each star In starList
+
             If star.IsMerged Then
                 Continue For
             End If
@@ -337,21 +332,31 @@ Public Class Universe
             'Check for bounce only on zoom.
             'This will prevent the bounce effect even if it's halfway through the wall.
             If canBounce And Not universeDragged Then
+
                 If Not star.isFullyVisible Then
                     star.IsOutOfBounds = True
                 Else
                     star.IsOutOfBounds = False 'Reset if visible again.
                 End If
-            ElseIf Not canBounce Then 'For tunneling, we don't do it if it's more than half out of bounds.
+
+            ElseIf Not canBounce Then 'For tunneling, we don't do it, if it's more than half out of bounds.
+
                 If Not star.isPartialVisible Then
                     star.IsOutOfBounds = True
                 Else
                     star.IsOutOfBounds = False 'Reset if visible again.
                 End If
+
             End If
 
             'Update universe matrix for the object.
             star.UniverseMatrix = universeMatrix.Clone
+
+            'Transform original point.
+            Dim points() As PointF = {star.OriginPoint}
+            Dim inverseMatrix = universeMatrix.Clone
+            inverseMatrix.Invert()
+            inverseMatrix.TransformPoints(points)
 
         Next
 
@@ -367,26 +372,35 @@ Public Class Universe
             'Check for bounce only on zoom.
             'This will prevent the bounce effect even if it's halfway through the wall.
             If canBounce And Not universeDragged Then
+
                 If Not planet.isFullyVisible Then
                     planet.IsOutOfBounds = True
                 Else
                     planet.IsOutOfBounds = False 'Reset if visible again.
                 End If
-            ElseIf Not canBounce Then 'For tunneling, we don't do it it's more than half out of bounds.
+
+            ElseIf Not canBounce Then 'For tunneling, we don't do it, if it's more than half out of bounds.
+
                 If Not planet.isPartialVisible Then
                     planet.IsOutOfBounds = True
                 Else
                     planet.IsOutOfBounds = False 'Reset if visible again.
                 End If
+
             End If
 
             'Update universe matrix for the object.
             planet.UniverseMatrix = universeMatrix.Clone
-            universeMatrix.Invert()
+
+            'Transform original point.
+            Dim points() As PointF = {planet.OriginPoint}
+            Dim inverseMatrix = universeMatrix.Clone
+            inverseMatrix.TransformPoints(points)
+
             If drawTrajectories Then
 
                 Dim tPoints = planet.TrajectoryPoints.ToArray
-                universeMatrix.TransformPoints(tPoints)
+                inverseMatrix.TransformPoints(tPoints)
                 planet.TrajectoryPoints = tPoints.ToList
 
             End If

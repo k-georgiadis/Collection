@@ -493,7 +493,7 @@ Partial Class blockForm
         Me.boxCoords.Size = New System.Drawing.Size(228, 87)
         Me.boxCoords.TabIndex = 23
         Me.boxCoords.TabStop = False
-        Me.boxCoords.Text = "Coordinates (Scaled/Absolute)"
+        Me.boxCoords.Text = "Coordinates (Real/Absolute)"
         '
         'lblCoordsAbs
         '

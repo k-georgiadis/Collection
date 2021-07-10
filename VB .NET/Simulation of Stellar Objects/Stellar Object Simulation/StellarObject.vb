@@ -23,6 +23,7 @@ Public Class StellarObject
     Protected objectBorderWidth As Integer
 
     Protected objectCenterOfMass As PointF
+    Protected objectOriginPoint As PointF 'Used as the original point without any offsets, for drawing the object.
 
     Protected objectVelX As Double
     Protected objectVelY As Double
@@ -143,6 +144,15 @@ Public Class StellarObject
         End Get
         Set(ByVal Point As PointF)
             objectCenterOfMass = Point
+        End Set
+    End Property
+
+    Public Property OriginPoint As PointF
+        Get
+            Return objectOriginPoint
+        End Get
+        Set(value As PointF)
+            objectOriginPoint = value
         End Set
     End Property
 
@@ -285,13 +295,13 @@ Public Class StellarObject
     Public ReadOnly Property isVisibleX() As Boolean
         Get
             Return objectCenterOfMass.X >= objectUniverseOffsetX - objectRadius And
-                   objectCenterOfMass.X <= objectUniverse.getRightBottomBoundary().X + objectRadius 'If inside the X visible area at all.
+                   objectCenterOfMass.X <= objectUniverse.getWidth + objectRadius 'If inside the X visible area at all.
         End Get
     End Property
     Public ReadOnly Property isVisibleY() As Boolean
         Get
             Return objectCenterOfMass.Y >= objectUniverseOffsetY - objectRadius And
-                   objectCenterOfMass.Y <= objectUniverse.getRightBottomBoundary().Y + objectRadius 'If inside the Y visible area at all.
+                   objectCenterOfMass.Y <= objectUniverse.getHeight + objectRadius 'If inside the Y visible area at all.
         End Get
     End Property
     Public ReadOnly Property isVisible() As Boolean
@@ -302,13 +312,13 @@ Public Class StellarObject
     Public ReadOnly Property isPartialVisibleX() As Boolean
         Get
             Return objectCenterOfMass.X >= objectUniverseOffsetX And
-                   objectCenterOfMass.X <= objectUniverse.getRightBottomBoundary().X 'If it's half or more is inside X visible area.
+                   objectCenterOfMass.X <= objectUniverse.getWidth 'If it's half or more is inside X visible area.
         End Get
     End Property
     Public ReadOnly Property isPartialVisibleY() As Boolean
         Get
             Return objectCenterOfMass.Y >= objectUniverseOffsetY And
-                   objectCenterOfMass.Y <= objectUniverse.getRightBottomBoundary().Y 'If it's half or more is inside Y visible area.
+                   objectCenterOfMass.Y <= objectUniverse.getHeight 'If it's half or more is inside Y visible area.
         End Get
     End Property
     Public ReadOnly Property isPartialVisible() As Boolean
@@ -336,7 +346,7 @@ Public Class StellarObject
         objectVelY += AccY
     End Sub
 
-    Friend Overridable Sub Paint()
+    Friend Overridable Sub Paint(ByVal universeGraphics As Graphics)
 
     End Sub
 

@@ -56,13 +56,13 @@ Public Class Planet
     Public ReadOnly Property isFullyVisibleX() As Boolean
         Get
             Return objectCenterOfMass.X >= objectUniverseOffsetX + GetHalfSize + objectBorderWidth And
-                   objectCenterOfMass.X <= objectUniverse.getRightBottomBoundary().X - GetHalfSize - objectBorderWidth 'If fully inside the X visible area.
+                   objectCenterOfMass.X <= objectUniverse.getWidth - GetHalfSize - objectBorderWidth 'If fully inside the X visible area.
         End Get
     End Property
     Public ReadOnly Property isFullyVisibleY() As Boolean
         Get
             Return objectCenterOfMass.Y >= objectUniverseOffsetY + GetHalfSize + objectBorderWidth And
-                   objectCenterOfMass.Y <= objectUniverse.getRightBottomBoundary().Y - GetHalfSize - objectBorderWidth 'If fully inside the Y visible area.
+                   objectCenterOfMass.Y <= objectUniverse.getHeight - GetHalfSize - objectBorderWidth 'If fully inside the Y visible area.
         End Get
     End Property
     Public ReadOnly Property isFullyVisible() As Boolean
@@ -74,13 +74,21 @@ Public Class Planet
     ' Allow friend access to the empty constructor.
     Friend Sub New()
     End Sub
-    Friend Sub Init(ByVal pUniverse As Universe, ByVal pUniverseMatrix As Drawing2D.Matrix, ByVal pLocation As PointF, ByVal pSize As Integer,
-                    ByVal pBorderWidth As Integer, ByVal pColor As Color,
+    Friend Sub Init(ByVal pUniverse As Universe, ByVal pUniverseMatrix As Drawing2D.Matrix, ByVal pLocation As PointF, ByVal pOriginLocation As PointF,
+                    ByVal pSize As Integer, ByVal pBorderWidth As Integer, ByVal pColor As Color,
                     Optional ByVal pVelX As Double = 0, Optional ByVal pVelY As Double = 0
                     )
 
         objectUniverse = pUniverse 'Set universe the object is in.
         objectUniverseMatrix = pUniverseMatrix 'Set object's universe matrix.
+
+        'Transform original point.
+        Dim points() As PointF = {pOriginLocation}
+        Dim inverseMatrix = objectUniverseMatrix.Clone
+        inverseMatrix.Invert()
+        inverseMatrix.TransformPoints(points)
+
+        objectOriginPoint = points(0) 'Get absolute point for drawing the planet.
 
         'Set offset.
         objectUniverseOffsetX = objectUniverse.OffsetX
@@ -95,10 +103,10 @@ Public Class Planet
         objectColor = pColor 'Init object color.
 
         'Add vertices to planet.
-        planetVertices.Add(New PointF(pLocation.X - MyBase.objectSize / 2, pLocation.Y - MyBase.objectSize / 2))
-        planetVertices.Add(New PointF(pLocation.X + MyBase.objectSize / 2, pLocation.Y - MyBase.objectSize / 2))
-        planetVertices.Add(New PointF(pLocation.X + MyBase.objectSize / 2, pLocation.Y + MyBase.objectSize / 2))
-        planetVertices.Add(New PointF(pLocation.X - MyBase.objectSize / 2, pLocation.Y + MyBase.objectSize / 2))
+        planetVertices.Add(New PointF(pOriginLocation.X - objectSize / 2, pOriginLocation.Y - objectSize / 2))
+        planetVertices.Add(New PointF(pOriginLocation.X + objectSize / 2, pOriginLocation.Y - objectSize / 2))
+        planetVertices.Add(New PointF(pOriginLocation.X + objectSize / 2, pOriginLocation.Y + objectSize / 2))
+        planetVertices.Add(New PointF(pOriginLocation.X - objectSize / 2, pOriginLocation.Y + objectSize / 2))
 
         objectTransitionDirection = "" 'Init transition direction. No direction.
 
@@ -147,10 +155,14 @@ Public Class Planet
                 ' delta = 1 / 100
 
                 If distanceLength < star.Radius - 3 Then
+
                     objectMerged = True
                     IsSelected = False 'Clear selection flag.
+
                     Exit Sub
+
                 End If
+
             End If
 
             'Multiply distance to simulate "normal" distances of stellar objects in the universe.
@@ -246,9 +258,12 @@ Public Class Planet
                 End Select
 
                 planetVertices(i) = currentVertex 'Save new vertex.
+
             Next
         Else
+
             For i = 0 To planetVertices.Count - 1
+
                 currentVertex = planetVertices(i) 'Get vertex.
 
                 'Change coordinates.
@@ -267,23 +282,66 @@ Public Class Planet
 
                 planetVertices(i) = currentVertex 'Save new vertex.
             Next
+
         End If
 
         objectCenterOfMass = New PointF(planetVertices(0).X + objectSize / 2, planetVertices(0).Y + objectSize / 2) 'New center of mass.
 
     End Sub
-    Friend Overrides Sub Paint()
+    Friend Sub CheckForBounce()
 
-        Dim planetGraphics As Graphics = objectUniverse.getGraphics
+        'Bouncing (Left, Right & Top, Bottom).
+        If objectCenterOfMass.X <= objectUniverseOffsetX + GetHalfSize + objectBorderWidth - 1 Or
+           objectCenterOfMass.X >= objectUniverse.getWidth - GetHalfSize - objectBorderWidth + 1 Then
+            'Change X direction.
+            objectVelX = -objectVelX 'Opposite direction.
+
+            If objectCenterOfMass.X <= objectUniverseOffsetX + GetHalfSize + objectBorderWidth - 1 Then
+                Move(0, "", objectUniverseOffsetX + objectBorderWidth - 1, planetVertices(0).Y)
+            Else
+                Move(0, "", objectUniverse.getWidth - objectSize - objectBorderWidth + 1, planetVertices(0).Y)
+            End If
+
+        ElseIf objectCenterOfMass.Y <= objectUniverseOffsetY + GetHalfSize + objectBorderWidth - 1 Or
+               objectCenterOfMass.Y >= objectUniverse.getHeight - GetHalfSize - objectBorderWidth + 1 Then
+            'Change Y direction.
+            objectVelY = -objectVelY 'Opposite direction.
+
+            If objectCenterOfMass.Y <= objectUniverseOffsetY + GetHalfSize + objectBorderWidth - 1 Then
+                Move(0, "", objectCenterOfMass.X, objectUniverseOffsetY + objectBorderWidth - 1)
+            Else
+                Move(0, "", objectCenterOfMass.X, objectUniverse.getHeight - objectSize - objectBorderWidth + 1)
+            End If
+
+            'Console.Write("im going places" + Math.Sign(planetVelY).ToString + planetCenterOfMass.ToString + vbNewLine)
+        End If
+
+    End Sub
+
+    Friend Sub AddTrajectoryPoint(ByVal point As PointF)
+
+        planetTrajectoryPoints.Add(point)
+
+    End Sub
+    Friend Sub ClearTrajectory()
+
+        planetTrajectoryPoints.RemoveRange(0, planetTrajectoryPoints.Count)
+
+    End Sub
+
+    Friend Overrides Sub Paint(ByVal universeGraphics As Graphics)
+
         Dim planetPen As New Pen(objectUniverse.getPen.Brush, objectUniverse.getPen.Width)
 
         'Paint lines(sides) between each pair of vertices.
         For i = 0 To planetVertices.Count - 1
+
             If i = planetVertices.Count - 1 Then
-                planetGraphics.DrawLine(planetPen, planetVertices.Item(i), planetVertices.Item(0)) 'Draw last line.
+                universeGraphics.DrawLine(planetPen, planetVertices.Item(i), planetVertices.Item(0)) 'Draw last line.
             Else
-                planetGraphics.DrawLine(planetPen, planetVertices.Item(i), planetVertices.Item(i + 1)) 'Draw line.
+                universeGraphics.DrawLine(planetPen, planetVertices.Item(i), planetVertices.Item(i + 1)) 'Draw line.
             End If
+
         Next
 
         Dim tempWidth As Integer = planetPen.Width
@@ -291,10 +349,13 @@ Public Class Planet
 
         'Paint selection rectangle, if selected.
         If IsSelected Then
+
             Dim tempColor As Color = planetPen.Color 'Save color.
+
             planetPen.Color = Color.White 'Set to white for maximum contrast.
-            planetGraphics.DrawRectangle(planetPen, planetVertices.Item(0).X - 2, planetVertices.Item(0).Y - 2, Size + 4, Size + 4)
+            universeGraphics.DrawRectangle(planetPen, planetVertices.Item(0).X - 2, planetVertices.Item(0).Y - 2, Size + 4, Size + 4)
             planetPen.Color = tempColor 'Restore original color.
+
         End If
 
         Dim maxPoints As Integer = objectUniverse.getMaxTrajPoints() 'Get maximum number of points to use for the trajectory.
@@ -309,7 +370,7 @@ Public Class Planet
         If objectUniverse.drawTraj Then
 
             'Transform the trajectory point.
-            Dim transformedTrajectoryPoint() As PointF = {New PointF(objectCenterOfMass.X, objectCenterOfMass.Y)}
+            Dim transformedTrajectoryPoint() As PointF = {objectOriginPoint}
             UniverseMatrix.TransformPoints(transformedTrajectoryPoint)
 
             'If there are any trajectory points.
@@ -368,45 +429,5 @@ Public Class Planet
 
     End Sub
 
-    Friend Sub CheckForBounce()
-
-        'Bouncing (Left, Right & Top, Bottom).
-        If objectCenterOfMass.X <= objectUniverseOffsetX + GetHalfSize + objectBorderWidth - 1 Or
-           objectCenterOfMass.X >= objectUniverse.getRightBottomBoundary().X - GetHalfSize - objectBorderWidth + 1 Then
-            'Change X direction.
-            objectVelX = -objectVelX 'Opposite direction.
-
-            If objectCenterOfMass.X <= objectUniverseOffsetX + GetHalfSize + objectBorderWidth - 1 Then
-                Move(0, "", objectUniverseOffsetX + objectBorderWidth - 1, planetVertices(0).Y)
-            Else
-                Move(0, "", objectUniverse.getRightBottomBoundary().X - objectSize - objectBorderWidth + 1, planetVertices(0).Y)
-            End If
-
-        ElseIf objectCenterOfMass.Y <= objectUniverseOffsetY + GetHalfSize + objectBorderWidth - 1 Or
-               objectCenterOfMass.Y >= objectUniverse.getRightBottomBoundary().Y - GetHalfSize - objectBorderWidth + 1 Then
-            'Change Y direction.
-            objectVelY = -objectVelY 'Opposite direction.
-
-            If objectCenterOfMass.Y <= objectUniverseOffsetY + GetHalfSize + objectBorderWidth - 1 Then
-                Move(0, "", objectCenterOfMass.X, objectUniverseOffsetY + objectBorderWidth - 1)
-            Else
-                Move(0, "", objectCenterOfMass.X, objectUniverse.getRightBottomBoundary().Y - objectSize - objectBorderWidth + 1)
-            End If
-
-            'Console.Write("im going places" + Math.Sign(planetVelY).ToString + planetCenterOfMass.ToString + vbNewLine)
-        End If
-
-    End Sub
-
-    Friend Sub AddTrajectoryPoint(ByVal point As PointF)
-
-        planetTrajectoryPoints.Add(point)
-
-    End Sub
-    Friend Sub ClearTrajectory()
-
-        planetTrajectoryPoints.RemoveRange(0, planetTrajectoryPoints.Count)
-
-    End Sub
 
 End Class

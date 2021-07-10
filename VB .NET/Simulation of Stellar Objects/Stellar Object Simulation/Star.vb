@@ -18,13 +18,13 @@ Public Class Star
     Public ReadOnly Property isFullyVisibleX() As Boolean
         Get
             Return objectCenterOfMass.X >= objectUniverseOffsetX + objectRadius And
-                   objectCenterOfMass.X <= objectUniverse.getRightBottomBoundary().X - objectRadius 'If fully inside the X visible area.
+                   objectCenterOfMass.X <= objectUniverse.getWidth - objectRadius 'If fully inside the X visible area.
         End Get
     End Property
     Public ReadOnly Property isFullyVisibleY() As Boolean
         Get
             Return objectCenterOfMass.Y >= objectUniverseOffsetY + objectRadius And
-                   objectCenterOfMass.Y <= objectUniverse.getRightBottomBoundary().Y - objectRadius 'If fully inside the Y visible area.
+                   objectCenterOfMass.Y <= objectUniverse.getHeight - objectRadius 'If fully inside the Y visible area.
         End Get
     End Property
     Public ReadOnly Property isFullyVisible() As Boolean
@@ -38,18 +38,26 @@ Public Class Star
 
     End Sub
     Friend Sub Init(ByVal sUniverse As Universe, ByVal pUniverseMatrix As Drawing2D.Matrix,
-                    ByVal sLocation As PointF, ByVal sRadius As Double,
+                    ByVal sLocation As PointF, ByVal sOriginLocation As PointF, ByVal sRadius As Double,
                     ByVal sBorderWidth As Integer, ByVal sColor As Color, ByVal sType As Integer,
                     Optional ByVal sVelX As Double = 0, Optional ByVal sVelY As Double = 0)
 
         objectUniverse = sUniverse 'Set universe the object is in.
         objectUniverseMatrix = pUniverseMatrix 'Set object's universe matrix.
 
+        'Transform original point.
+        Dim points() As PointF = {sOriginLocation}
+        Dim inverseMatrix = objectUniverseMatrix.Clone
+        inverseMatrix.Invert()
+        inverseMatrix.TransformPoints(points)
+
+        objectOriginPoint = points(0) 'Set absolute point for drawing the star.
+
         'Set offset.
         objectUniverseOffsetX = objectUniverse.OffsetX
         objectUniverseOffsetY = objectUniverse.OffsetY
 
-        objectCenterOfMass = New PointF(sLocation.X, sLocation.Y) 'Init center of mass.
+        objectCenterOfMass = sLocation 'Init center of mass.
         objectRadius = sRadius 'Init object radius.
 
         objectBorderWidth = sBorderWidth 'Init object pen border width.
@@ -120,7 +128,6 @@ Public Class Star
                     IsMerging = True 'Set flag for merging.
                     delta = 1
 
-                    Dim newCenterOfMass As New PointF 'Calculate point after we find out who ate who.
                     Dim newStarMass As Double = 0 'Let's find out first, who has the biggest mass.
                     Dim newStarRadius As Integer = 0 'Let's find out first, who has the biggest radius.
 
@@ -139,11 +146,10 @@ Public Class Star
                         obj.IsMerged = True 'Set merge flag for the eaten object.
                         obj.IsSelected = False 'Clear selection flag.
 
-                        newCenterOfMass = New PointF(objectCenterOfMass.X, objectCenterOfMass.Y) 'Set center of mass on eater.
                         newStarRadius = objectRadius + obj.Radius / 4 'New radius is the radius of the eater + a 4th the radius of the eaten object.
 
                         'Initialize new merged Star.
-                        Init(objectUniverse, objectUniverseMatrix, newCenterOfMass, newStarRadius, objectBorderWidth, newcolor, newobjectType,
+                        Init(objectUniverse, objectUniverseMatrix, objectCenterOfMass, objectOriginPoint, newStarRadius, objectBorderWidth, newcolor, newobjectType,
                              newVelX, newVelY)
 
                         objectMass = newStarMass 'Set new merged mass.
@@ -153,11 +159,10 @@ Public Class Star
                         IsMerged = True 'Set merge flag for the eaten object.
                         IsSelected = False 'Clear selection flag.
 
-                        newCenterOfMass = New PointF(obj.CenterOfMass.X, obj.CenterOfMass.Y) 'Set center of mass on eaten object.
                         newStarRadius = obj.Radius + objectRadius / 4 'New radius is the radius of eater + a 4th the radius of the eaten object.
 
                         'Initialize new merged Star.
-                        CType(obj, Star).Init(objectUniverse, objectUniverseMatrix, newCenterOfMass, newStarRadius, objectBorderWidth, newcolor, newobjectType,
+                        CType(obj, Star).Init(objectUniverse, objectUniverseMatrix, obj.CenterOfMass, obj.OriginPoint, newStarRadius, objectBorderWidth, newcolor, newobjectType,
                                   newVelX, newVelY)
 
                         obj.Mass = newStarMass 'Set new merged mass.
@@ -248,36 +253,12 @@ Public Class Star
         End If
 
     End Sub
-    Friend Overrides Sub Paint()
-
-        Dim universeGraphics As Graphics = objectUniverse.getGraphics
-        Dim starPen As Pen = objectUniverse.getPen
-
-        Dim tempColor As Color = objectUniverse.getPen.Color
-        Dim tempWidth As Integer = starPen.Width
-
-        starPen.Color = objectColor 'Set color of star.
-        starPen.Width = objectBorderWidth 'Set star border width.
-
-        'Paint ellipse.
-        universeGraphics.DrawEllipse(starPen, objectCenterOfMass.X - objectRadius, objectCenterOfMass.Y - objectRadius, 2 * objectRadius, 2 * objectRadius)
-        'Fill star.
-        universeGraphics.FillEllipse(starPen.Brush, objectCenterOfMass.X - objectRadius, objectCenterOfMass.Y - objectRadius, 2 * objectRadius, 2 * objectRadius)
-
-        'Paint selection ellipse, if selected.
-        If IsSelected Then
-            starPen.Color = Color.White 'Set to white for maximum contrast.
-            universeGraphics.DrawEllipse(starPen, objectCenterOfMass.X - objectRadius - 2, objectCenterOfMass.Y - objectRadius - 2, 2 * (objectRadius + 2), 2 * (objectRadius + 2))
-        End If
-
-        starPen.Color = tempColor  'Restore color.
-        starPen.Width = tempWidth 'Restore width.
-    End Sub
     Friend Sub CheckForBounce()
 
         'Bouncing (Left, Right & Top, Bottom).
         If objectCenterOfMass.X <= objectUniverseOffsetX + objectRadius Or
-           objectCenterOfMass.X >= objectUniverse.getRightBottomBoundary().X - objectRadius Then
+           objectCenterOfMass.X >= objectUniverse.getWidth - objectRadius Then
+
             'Change X direction.
             objectVelX = -objectVelX 'Opposite direction.
 
@@ -285,11 +266,12 @@ Public Class Star
                 If objectCenterOfMass.X <= objectUniverseOffsetX + objectRadius Then
                     Move(0, "", objectUniverseOffsetX + objectRadius, objectCenterOfMass.Y)
                 Else
-                    Move(0, "", objectUniverse.getRightBottomBoundary().X - objectRadius, objectCenterOfMass.Y)
+                    Move(0, "", objectUniverse.getWidth - objectRadius, objectCenterOfMass.Y)
                 End If
             End If
         ElseIf objectCenterOfMass.Y <= objectUniverseOffsetY + objectRadius Or
-               objectCenterOfMass.Y >= objectUniverse.getRightBottomBoundary().Y - objectRadius Then
+               objectCenterOfMass.Y >= objectUniverse.getHeight - objectRadius Then
+
             'Change Ydirection.
             objectVelY = -objectVelY 'Opposite direction.
 
@@ -297,10 +279,35 @@ Public Class Star
                 If objectCenterOfMass.Y <= objectUniverseOffsetY + objectRadius Then
                     Move(0, "", objectCenterOfMass.X, objectUniverseOffsetY + objectRadius)
                 Else
-                    Move(0, "", objectCenterOfMass.X, objectUniverse.getRightBottomBoundary().Y - objectRadius)
+                    Move(0, "", objectCenterOfMass.X, objectUniverse.getHeight - objectRadius)
                 End If
             End If
         End If
+
+    End Sub
+
+    Friend Overrides Sub Paint(ByVal universeGraphics As Graphics)
+
+        Dim starPen As Pen = objectUniverse.getPen
+        Dim tempColor As Color = objectUniverse.getPen.Color
+        Dim tempWidth As Integer = starPen.Width
+
+        starPen.Color = objectColor 'Set color of star.
+        starPen.Width = objectBorderWidth 'Set star border width.
+
+        'Paint ellipse.
+        universeGraphics.DrawEllipse(starPen, objectOriginPoint.X - objectRadius, objectOriginPoint.Y - objectRadius, 2 * objectRadius, 2 * objectRadius)
+        'Fill star.
+        universeGraphics.FillEllipse(starPen.Brush, objectOriginPoint.X - objectRadius, objectOriginPoint.Y - objectRadius, 2 * objectRadius, 2 * objectRadius)
+
+        'Paint selection ellipse, if selected.
+        If IsSelected Then
+            starPen.Color = Color.White 'Set to white for maximum contrast.
+            universeGraphics.DrawEllipse(starPen, objectOriginPoint.X - objectRadius - 2, objectOriginPoint.Y - objectRadius - 2, 2 * (objectRadius + 2), 2 * (objectRadius + 2))
+        End If
+
+        starPen.Color = tempColor  'Restore color.
+        starPen.Width = tempWidth 'Restore width.
 
     End Sub
 
