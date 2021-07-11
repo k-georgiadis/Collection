@@ -48,6 +48,7 @@ Public Class blockForm
 
     Dim myUniverse As New Universe
     Dim myUniverseMatrix As New Drawing2D.Matrix
+    Dim myInverseUniverseMatrix As New Drawing2D.Matrix
 
     Dim defaultUniverseMatrix As New Drawing2D.Matrix
     Dim defaultUniverseWidth As Double = 1100
@@ -112,6 +113,7 @@ Public Class blockForm
     'Timers and threads.
     Dim debug_stopwatch As New Stopwatch()
 
+    Dim tickValue As Integer
     Dim frameCounter As Integer = 0
     Dim FPS As Integer = 0
     Dim fpsTimer As New Timers.Timer(1000) '1 second.
@@ -141,12 +143,14 @@ Public Class blockForm
         formDefaultWidth = Me.Width
         formDefaultHeight = Me.Height
 
+        tickValue = numTimeTick.Value
+
         'Init universe/world for the first time.
         InitWorld(False)
 
         'Start main thread for calculating accelerations and movements.
         mainThread.Start()
-        paintThread.Start()
+        paintThread.Start(myUniverse.getGraphics)
 
     End Sub
 
@@ -156,10 +160,10 @@ Public Class blockForm
         ' threadList.Last.Start()
 
         ' threadList.Add(New Thread(AddressOf createplanet)) 'Each planet is handled by a different thread.
-        ' threadList.Last.Start(New PointF(750, 350)) 'Start thread.
+        ' threadList.Last.Start(New PointFD(750, 350)) 'Start thread.
 
         'Init planet universe.
-        myUniverse.Init(formGraphics, myPen, universeWidth, universeHeight, formDefaultWidth, formDefaultHeight, New PointF(clipOffsetX, clipOffsetY),
+        myUniverse.Init(formGraphics, myPen, universeWidth, universeHeight, formDefaultWidth, formDefaultHeight, New PointFD(clipOffsetX, clipOffsetY),
                         generalTraj.Checked, numTraj.Value, collisionBounce.Checked)
         myUniverse.getGraphics.Clear(Color.Black)
 
@@ -180,6 +184,7 @@ Public Class blockForm
 
     End Sub
     Private Sub UniverseLive()
+
         'startstars()
 
         'So basically the idea is this:
@@ -193,16 +198,14 @@ Public Class blockForm
         While 1
 
             'Stop universe if paused.
-            If onFrame Or UniversePaused Then Continue While
+            If UniversePaused Then Continue While
 
-            myUniverse.Live(applyingstarVelocity, applyingPlanetAcceleration, paintingStars, paintingPlanets) 'Start calculating accelarations and move objects.
+            myUniverse.Live(StarArrayInUseFlag, PlanetArrayInUseFlag) 'Start calculating accelarations and move objects.
             frameCounter += 1 'Count frames.
 
-            Try
-                Thread.Sleep(numTimeTick.Value) 'Delay.
-            Catch ex As Exception
-                Console.WriteLine(ex.ToString)
-            End Try
+            If tickValue > 0 Then
+                Thread.Sleep(tickValue) 'Delay.
+            End If
 
         End While
 
@@ -219,40 +222,46 @@ Public Class blockForm
         e.Graphics.DrawImage(myUniverse.getImage, New Point(0, 0)) 'Draw universe.
         e.Graphics.DrawString(FPS.ToString, Me.Font, Brushes.White, defaultUniverseWidth - defaultClipOffset, defaultClipOffset + 10) 'Draw FPS.
     End Sub
-    Private Sub PaintUniverseObjects()
+    Private Sub PaintUniverseObjects(ByVal universeGraphics As Graphics)
 
         paintingStars = True
         paintingPlanets = True
         'debug_stopwatch = Stopwatch.StartNew()
+        Dim objList As New List(Of StellarObject)
+        Try
 
-        'Get graphics once and not everytime we check an object.
 
-        Dim universeGraphics As Graphics = myUniverse.getGraphics
+            objList.AddRange(myUniverse.Objects)
 
-        For Each obj In myUniverse.Objects.FindAll(Function(o) o.IsMerged = False And o.isVisible = True)
+        Catch ex As Exception
+            Console.WriteLine(ex.ToString)
+        End Try
+        Try
 
-            obj.Paint(universeGraphics)
+            For Each obj In objList.FindAll(Function(o) o.IsMerged = False And o.isVisible)
 
-            'Tunneling.
-            If obj.isStar And collisionTunnel.Checked And Not obj.IsOutOfBounds Then
+                obj.Paint(universeGraphics, zoomValue)
 
-                Star_CheckForLeftTunneling(obj, obj.CenterOfMass, universeGraphics)   'Left Wall.
-                Star_CheckForRightTunneling(obj, obj.CenterOfMass, universeGraphics)  'Right Wall.
-                Star_CheckForTopTunneling(obj, obj.CenterOfMass, universeGraphics)    'Top Wall.
-                Star_CheckForBottomTunneling(obj, obj.CenterOfMass, universeGraphics) 'Bottom Wall.
+                'Tunneling.
+                If obj.isStar And collisionTunnel.Checked And Not dragStart Then
 
-            ElseIf collisionTunnel.Checked And Not obj.IsOutOfBounds Then
+                    Star_CheckForLeftTunneling(obj, obj.CenterOfMass, universeGraphics)   'Left Wall.
+                    Star_CheckForRightTunneling(obj, obj.CenterOfMass, universeGraphics)  'Right Wall.
+                    Star_CheckForTopTunneling(obj, obj.CenterOfMass, universeGraphics)    'Top Wall.
+                    Star_CheckForBottomTunneling(obj, obj.CenterOfMass, universeGraphics) 'Bottom Wall.
 
-                Planet_CheckForLeftTunneling(obj, obj.CenterOfMass, universeGraphics)
-                Planet_CheckForRightTunneling(obj, obj.CenterOfMass, universeGraphics)
-                Planet_CheckForTopTunneling(obj, obj.CenterOfMass, universeGraphics)
-                Planet_CheckForBottomTunneling(obj, obj.CenterOfMass, universeGraphics)
-            ElseIf obj.IsOutOfBounds Then
-                Dim kek = 1
-            End If
+                ElseIf collisionTunnel.Checked And Not dragStart Then
 
-        Next
+                    Planet_CheckForLeftTunneling(obj, obj.CenterOfMass, universeGraphics)
+                    Planet_CheckForRightTunneling(obj, obj.CenterOfMass, universeGraphics)
+                    Planet_CheckForTopTunneling(obj, obj.CenterOfMass, universeGraphics)
+                    Planet_CheckForBottomTunneling(obj, obj.CenterOfMass, universeGraphics)
+                End If
 
+            Next
+        Catch ex As Exception
+            Console.WriteLine(ex.ToString)
+        End Try
         'debug_stopwatch.Stop()
         'Console.WriteLine("  Painted stars in: " + debug_stopwatch.ElapsedMilliseconds.ToString)
         paintingStars = False
@@ -260,22 +269,22 @@ Public Class blockForm
 
     End Sub
     Private Delegate Sub FrameDelegate()
-    Private Sub Frame()
+    Private Sub Frame(ByVal universeGraphics As Graphics)
 
         While 1
             onFrame = True
 
-            'Avoid painting objects while zooming/moving to avoid "object in use" exceptions.
-            If zooming Or dragging Then Continue While
+            'Don't paint objects while zooming/moving to avoid "object in use" exceptions.
+            If zooming Or dragging Or StarArrayInUseFlag Or PlanetArrayInUseFlag Then Continue While
 
             'Update world.
             Try
                 If canvasClear.Checked Then
-                    myUniverse.getGraphics.Clear(Color.Black) 'Clear image.
+                    universeGraphics.Clear(Color.Black) 'Clear image.
                 End If
 
                 'Draw objects.
-                PaintUniverseObjects()
+                PaintUniverseObjects(universeGraphics)
                 Me.Invoke(New InvalidateImageDelegate(AddressOf InvalidateImage))
 
             Catch ex As Exception
@@ -358,7 +367,7 @@ Public Class blockForm
     '----------------------------------------------------------------------------------------------------------------------
     '----------------------------------------------------------------------------------------------------------------------
 
-    Private Sub Star_CheckForLeftTunneling(ByVal star As Star, ByVal center As PointF, ByVal universeGraphics As Graphics)
+    Private Sub Star_CheckForLeftTunneling(ByVal star As Star, ByVal center As PointFD, ByVal universeGraphics As Graphics)
 
         Dim radius As Integer = star.Radius
 
@@ -385,8 +394,7 @@ Public Class blockForm
 
         'Move the star, but just once.
         If center.X < clipOffsetX Then
-            star.Move(0, "", star.DuplicatePointLeft.X + radius, center.Y)
-            center = star.CenterOfMass
+            star.Move(0, "", center.X + universeWidth - clipOffsetX, center.Y)
         End If
 
         'Center of Mass moved. Draw the duplicate ellipse in it's position to preserve the transition.
@@ -412,7 +420,7 @@ Public Class blockForm
         End If
 
     End Sub
-    Private Sub Star_CheckForRightTunneling(ByVal star As Star, ByVal center As PointF, ByVal universeGraphics As Graphics)
+    Private Sub Star_CheckForRightTunneling(ByVal star As Star, ByVal center As PointFD, ByVal universeGraphics As Graphics)
 
         Dim radius As Single = star.Radius
 
@@ -438,8 +446,7 @@ Public Class blockForm
 
         'Move the star, but just once.
         If center.X > universeWidth Then
-            star.Move(0, "", star.DuplicatePointRight.X + radius, center.Y)
-            center = star.CenterOfMass
+            star.Move(0, "", center.X - universeWidth + clipOffsetX, center.Y)
         End If
 
         'Center of Mass moved. Draw the duplicate ellipse in it's position to preserve the transition.
@@ -466,7 +473,7 @@ Public Class blockForm
 
 
     End Sub
-    Private Sub Star_CheckForTopTunneling(ByVal star As Star, ByVal center As PointF, ByVal universeGraphics As Graphics)
+    Private Sub Star_CheckForTopTunneling(ByVal star As Star, ByVal center As PointFD, ByVal universeGraphics As Graphics)
 
         Dim radius As Integer = star.Radius
 
@@ -481,7 +488,7 @@ Public Class blockForm
             Dim newPen As New Pen(star.Color)
 
             'Calculate duplicate origin point.
-            Dim duplicatePoint = New PointF(center.X - radius, universeHeight + center.Y - clipOffsetY - radius)
+            Dim duplicatePoint = New Point(center.X - radius, universeHeight + center.Y - clipOffsetY - radius)
 
             'Create duplicate ellipse for transition purposes.
             universeGraphics.DrawEllipse(newPen, duplicatePoint.X, duplicatePoint.Y, radius * 2, radius * 2)
@@ -491,7 +498,7 @@ Public Class blockForm
             If center.X - radius < clipOffsetX Then
 
                 'Calculate second duplicate origin point.
-                Dim secondDuplicatePoint As New PointF(universeWidth + duplicatePoint.X - clipOffsetX, duplicatePoint.Y)
+                Dim secondDuplicatePoint As New Point(universeWidth + duplicatePoint.X - clipOffsetX, duplicatePoint.Y)
 
                 'Create second duplicate ellipse for corner transition purposes.
                 universeGraphics.DrawEllipse(newPen, secondDuplicatePoint.X, secondDuplicatePoint.Y, radius * 2, radius * 2)
@@ -500,7 +507,7 @@ Public Class blockForm
             ElseIf center.X + radius > universeWidth Then 'Else if the star is also tunneling to the right, draw a second duplicate in the bottom-left corner.
 
                 'Calculate second duplicate origin point.
-                Dim secondDuplicatePoint As New PointF(duplicatePoint.X - universeWidth + clipOffsetX, duplicatePoint.Y)
+                Dim secondDuplicatePoint As New Point(duplicatePoint.X - universeWidth + clipOffsetX, duplicatePoint.Y)
 
                 'Create second duplicate ellipse for corner transition purposes.
                 universeGraphics.DrawEllipse(newPen, secondDuplicatePoint.X, secondDuplicatePoint.Y, radius * 2, radius * 2)
@@ -514,8 +521,7 @@ Public Class blockForm
 
         'Move the star, but just once.
         If center.Y < clipOffsetY Then
-            star.Move(0, "", center.X, star.DuplicatePointTop.Y + radius)
-            center = star.CenterOfMass
+            star.Move(0, "", center.X, center.Y + universeHeight - clipOffsetY)
         End If
 
         'Center of Mass moved. Draw the duplicate ellipse in it's position to preserve the transition.
@@ -524,7 +530,7 @@ Public Class blockForm
             Dim newPen As New Pen(star.Color)
 
             'Calculate duplicate origin point.
-            Dim duplicatePoint = New PointF(center.X - radius, center.Y - universeHeight + clipOffsetY - radius)
+            Dim duplicatePoint = New Point(center.X - radius, center.Y - universeHeight + clipOffsetY - radius)
 
             'Create duplicate ellipse for transition purposes.
             universeGraphics.DrawEllipse(newPen, duplicatePoint.X, duplicatePoint.Y, radius * 2, radius * 2)
@@ -534,7 +540,7 @@ Public Class blockForm
             If center.X - radius < clipOffsetX Then
 
                 'Calculate second duplicate origin point.
-                Dim secondDuplicatePoint As New PointF(universeWidth + duplicatePoint.X - clipOffsetX, duplicatePoint.Y)
+                Dim secondDuplicatePoint As New Point(universeWidth + duplicatePoint.X - clipOffsetX, duplicatePoint.Y)
 
                 'Create second duplicate ellipse for corner transition purposes.
                 universeGraphics.DrawEllipse(newPen, secondDuplicatePoint.X, secondDuplicatePoint.Y, radius * 2, radius * 2)
@@ -543,7 +549,7 @@ Public Class blockForm
             ElseIf center.X + radius > universeWidth Then  'Else if the star is also tunneling to the right, draw a second duplicate in the top-left corner.
 
                 'Calculate second duplicate origin point.
-                Dim secondDuplicatePoint As New PointF(duplicatePoint.X - universeWidth + clipOffsetX, duplicatePoint.Y)
+                Dim secondDuplicatePoint As New Point(duplicatePoint.X - universeWidth + clipOffsetX, duplicatePoint.Y)
 
                 'Create second duplicate ellipse for corner transition purposes.
                 universeGraphics.DrawEllipse(newPen, secondDuplicatePoint.X, secondDuplicatePoint.Y, radius * 2, radius * 2)
@@ -562,7 +568,7 @@ Public Class blockForm
         End If
 
     End Sub
-    Private Sub Star_CheckForBottomTunneling(ByVal star As Star, ByVal center As PointF, ByVal universeGraphics As Graphics)
+    Private Sub Star_CheckForBottomTunneling(ByVal star As Star, ByVal center As PointFD, ByVal universeGraphics As Graphics)
 
         Dim radius As Integer = star.Radius
 
@@ -610,8 +616,7 @@ Public Class blockForm
 
         'Move the star, but just once.
         If center.Y > universeHeight Then
-            star.Move(0, "", center.X, star.DuplicatePointBottom.Y + radius)
-            center = star.CenterOfMass
+            star.Move(0, "", center.X, center.Y - universeHeight + clipOffsetY)
         End If
 
         'Center of Mass moved. Draw the duplicate ellipse in it's position to preserve the transition.
@@ -658,7 +663,7 @@ Public Class blockForm
 
     End Sub
 
-    Private Sub Planet_CheckForLeftTunneling(ByVal planet As Planet, ByVal center As PointF, ByVal universeGraphics As Graphics)
+    Private Sub Planet_CheckForLeftTunneling(ByVal planet As Planet, ByVal center As PointFD, ByVal universeGraphics As Graphics)
 
         'Remember to add the border width in all of the planet the calculations.
 
@@ -681,12 +686,11 @@ Public Class blockForm
 
         'Move the planet, but just once.
         If center.X < clipOffsetX Then
-            planet.Move(0, "", planet.DuplicatePointLeft.X, planet.DuplicatePointLeft.Y)
-            center = planet.CenterOfMass
+            planet.Move(0, "", center.X + universeWidth - clipOffsetX, center.Y)
         End If
 
         'Center of Mass moved. Draw the duplicate ellipse in it's position to preserve the transition.
-        If planet.GetVertices(1).X > universeWidth - planetBorderWidth And planet.TransitionDirection.Contains("l") Then
+        If planet.GetVertices(0).X > universeWidth - planetBorderWidth - planetSize And planet.TransitionDirection.Contains("l") Then
 
             'Calculate duplicate origin point.
             Dim duplicatePoint As PointF = New PointF(planet.GetVertices(0).X - universeWidth + clipOffsetX, planet.GetVertices(0).Y)
@@ -703,12 +707,12 @@ Public Class blockForm
         End If
 
     End Sub
-    Private Sub Planet_CheckForRightTunneling(ByVal planet As Planet, ByVal center As PointF, ByVal universeGraphics As Graphics)
+    Private Sub Planet_CheckForRightTunneling(ByVal planet As Planet, ByVal center As PointFD, ByVal universeGraphics As Graphics)
 
         Dim planetHalfWidth As Double = planet.GetHalfSize
 
         'Right tunneling.
-        If planet.GetVertices(1).X > universeWidth - planetBorderWidth And Not planet.TransitionDirection.Contains("l") Then
+        If planet.GetVertices(0).X > universeWidth - planetBorderWidth - planetSize And Not planet.TransitionDirection.Contains("l") Then
 
             'Add transition direction.
             If Not planet.TransitionDirection.Contains("r") Then
@@ -724,15 +728,14 @@ Public Class blockForm
 
         'Move the planet, but just once.
         If center.X > universeWidth Then
-            planet.Move(0, "", planet.DuplicatePointRight.X, planet.DuplicatePointRight.Y)
-            center = planet.CenterOfMass
+            planet.Move(0, "", center.X - universeWidth + clipOffsetX, center.Y)
         End If
 
         'Center of Mass moved. Draw the duplicate ellipse in it's position to preserve the transition.
         If planet.GetVertices(0).X < clipOffsetX + planetBorderWidth And planet.TransitionDirection.Contains("r") Then
 
             'Calculate duplicate origin point.
-            Dim duplicatePoint As PointF = New PointF(planet.GetVertices(0).X + universeWidth - clipOffsetX, planet.GetVertices(0).Y)
+            Dim duplicatePoint = New PointF(planet.GetVertices(0).X + universeWidth - clipOffsetX, planet.GetVertices(0).Y)
             DrawDuplicatePlanet(duplicatePoint, planet.Universe.getPen, universeGraphics)  'Draw duplicate planet.
 
             planet.DuplicatePointRight = duplicatePoint 'Set planet duplicate point.
@@ -747,7 +750,7 @@ Public Class blockForm
 
 
     End Sub
-    Private Sub Planet_CheckForTopTunneling(ByVal planet As Planet, ByVal center As PointF, ByVal universeGraphics As Graphics)
+    Private Sub Planet_CheckForTopTunneling(ByVal planet As Planet, ByVal center As PointFD, ByVal universeGraphics As Graphics)
 
         Dim planetHalfWidth As Double = planet.GetHalfSize
 
@@ -770,7 +773,7 @@ Public Class blockForm
                 Dim secondDuplicatePoint As New PointF(duplicatePoint.X + universeWidth - clipOffsetX, duplicatePoint.Y)
                 DrawDuplicatePlanet(secondDuplicatePoint, planet.Universe.getPen, universeGraphics) 'Draw duplicate of duplicate planet.
 
-            ElseIf planet.GetVertices(1).X > universeWidth - planetBorderWidth Then 'Else if the planet is also tunneling to the right, draw a second duplicate in the bottom-left corner.
+            ElseIf planet.GetVertices(0).X > universeWidth - planetBorderWidth - planetSize Then 'Else if the planet is also tunneling to the right, draw a second duplicate in the bottom-left corner.
 
                 'Create duplicate of duplicate planet for corner transition purposes.
                 Dim secondDuplicatePoint As New PointF(duplicatePoint.X - universeWidth + clipOffsetX, duplicatePoint.Y)
@@ -783,12 +786,11 @@ Public Class blockForm
 
         'Move the planet, but just once.
         If center.Y < clipOffsetY Then
-            planet.Move(0, "", planet.DuplicatePointTop.X, planet.DuplicatePointTop.Y)
-            center = planet.CenterOfMass
+            planet.Move(0, "", center.X, center.Y + universeHeight - clipOffsetY)
         End If
 
         'Center of Mass moved. Draw the duplicate ellipse in it's position to preserve the transition.
-        If planet.GetVertices(2).Y > universeHeight - planetBorderWidth And planet.TransitionDirection.Contains("t") Then
+        If planet.GetVertices(0).Y > universeHeight - planetBorderWidth - planetSize And planet.TransitionDirection.Contains("t") Then
 
             'Calculate duplicate origin point.
             Dim duplicatePoint = New PointF(planet.GetVertices(0).X, planet.GetVertices(0).Y - universeHeight + clipOffsetY)
@@ -801,7 +803,7 @@ Public Class blockForm
                 Dim secondDuplicatePoint As New PointF(planet.GetVertices(0).X + universeWidth - clipOffsetX, duplicatePoint.Y)
                 DrawDuplicatePlanet(secondDuplicatePoint, planet.Universe.getPen, universeGraphics) 'Draw duplicate of duplicate planet.
 
-            ElseIf planet.GetVertices(1).X > universeWidth - planetBorderWidth Then  'Else if the planet is also tunneling to the right, draw a second duplicate in the top-left corner.
+            ElseIf planet.GetVertices(0).X > universeWidth - planetBorderWidth - planetSize Then  'Else if the planet is also tunneling to the right, draw a second duplicate in the top-left corner.
 
                 'Calculate second duplicate origin point.
                 Dim secondDuplicatePoint As New PointF(duplicatePoint.X - universeWidth + clipOffsetX, duplicatePoint.Y)
@@ -818,12 +820,12 @@ Public Class blockForm
             End If
         End If
     End Sub
-    Private Sub Planet_CheckForBottomTunneling(ByVal planet As Planet, ByVal center As PointF, ByVal universeGraphics As Graphics)
+    Private Sub Planet_CheckForBottomTunneling(ByVal planet As Planet, ByVal center As PointFD, ByVal universeGraphics As Graphics)
 
         Dim planetHalfWidth As Double = planet.GetHalfSize
 
         'Bottom tunneling.
-        If planet.GetVertices(2).Y > universeHeight - planetBorderWidth And Not planet.TransitionDirection.Contains("t") Then
+        If planet.GetVertices(0).Y > universeHeight - planetBorderWidth - planetSize And Not planet.TransitionDirection.Contains("t") Then
 
             'Add transition direction.
             If Not planet.TransitionDirection.Contains("b") Then
@@ -841,7 +843,7 @@ Public Class blockForm
                 Dim secondDuplicatePoint As New PointF(duplicatePoint.X + universeWidth - clipOffsetX, duplicatePoint.Y)
                 DrawDuplicatePlanet(secondDuplicatePoint, planet.Universe.getPen, universeGraphics) 'Draw duplicate of duplicate planet.
 
-            ElseIf planet.GetVertices(1).X > universeWidth Then 'Else if the planet is going through the bottom-right corner, draw duplicate on top-right corner.
+            ElseIf planet.GetVertices(0).X > universeWidth - planetBorderWidth - planetSize Then 'Else if the planet is going through the bottom-right corner, draw duplicate on top-right corner.
 
                 'Calculate second duplicate origin point.
                 Dim secondDuplicatePoint As New PointF(duplicatePoint.X - universeWidth + clipOffsetX, duplicatePoint.Y)
@@ -854,8 +856,7 @@ Public Class blockForm
 
         'Move the planet, but just once.
         If center.Y > universeHeight Then
-            planet.Move(0, "", planet.DuplicatePointBottom.X, planet.DuplicatePointBottom.Y)
-            center = planet.CenterOfMass
+            planet.Move(0, "", center.X, center.Y - universeHeight + clipOffsetY)
         End If
 
         'Center of Mass moved. Draw the duplicate ellipse in it's position to preserve the transition.
@@ -872,7 +873,7 @@ Public Class blockForm
                 Dim secondDuplicatePoint As New PointF(duplicatePoint.X + universeWidth - clipOffsetX, duplicatePoint.Y)
                 DrawDuplicatePlanet(secondDuplicatePoint, planet.Universe.getPen, universeGraphics)
 
-            ElseIf planet.GetVertices(1).X > universeWidth - planetBorderWidth Then 'Else if the planet is also tunneling to the right, draw a second duplicate in the top-left corner.
+            ElseIf planet.GetVertices(0).X > universeWidth - planetBorderWidth - planetSize Then 'Else if the planet is also tunneling to the right, draw a second duplicate in the top-left corner.
 
                 'Calculate second duplicate origin point.
                 Dim secondDuplicatePoint As New PointF(duplicatePoint.X - universeWidth + clipOffsetX, duplicatePoint.Y)
@@ -891,24 +892,27 @@ Public Class blockForm
         End If
 
     End Sub
-    Private Sub DrawDuplicatePlanet(ByVal startingVertex As PointF, ByVal planePen As Pen, ByVal universeGraphics As Graphics)
+    Private Sub DrawDuplicatePlanet(ByVal startingVertex As PointF, ByVal planetPen As Pen, ByVal universeGraphics As Graphics)
 
-        Dim duplicatePlanetVertices As New List(Of PointF)
+        'Draw rectangle instead of lines.
+        universeGraphics.DrawRectangle(planetPen, startingVertex.X, startingVertex.Y, planetSize, planetSize)
 
-        'Initialize vertices for square.
-        duplicatePlanetVertices.Add(startingVertex)
-        duplicatePlanetVertices.Add(New PointF(startingVertex.X + planetSize, startingVertex.Y))
-        duplicatePlanetVertices.Add(New PointF(startingVertex.X + planetSize, startingVertex.Y + planetSize))
-        duplicatePlanetVertices.Add(New PointF(startingVertex.X, startingVertex.Y + planetSize))
+        'Dim duplicatePlanetVertices As New List(Of PointF)
 
-        'Draw square.
-        For i = 0 To duplicatePlanetVertices.Count - 1
-            If i = duplicatePlanetVertices.Count - 1 Then
-                universeGraphics.DrawLine(planePen, duplicatePlanetVertices(i), duplicatePlanetVertices(0)) 'Draw last line.
-            Else
-                universeGraphics.DrawLine(planePen, duplicatePlanetVertices(i), duplicatePlanetVertices(i + 1)) 'Draw line.
-            End If
-        Next
+        ''Initialize vertices for square.
+        'duplicatePlanetVertices.Add(startingVertex)
+        'duplicatePlanetVertices.Add(New PointF(startingVertex.X + planetSize, startingVertex.Y))
+        'duplicatePlanetVertices.Add(New PointF(startingVertex.X + planetSize, startingVertex.Y + planetSize))
+        'duplicatePlanetVertices.Add(New PointF(startingVertex.X, startingVertex.Y + planetSize))
+
+        ''Draw square.
+        'For i = 0 To duplicatePlanetVertices.Count - 1
+        '    If i = duplicatePlanetVertices.Count - 1 Then
+        '        universeGraphics.DrawLine(planePen, duplicatePlanetVertices(i), duplicatePlanetVertices(0)) 'Draw last line.
+        '    Else
+        '        universeGraphics.DrawLine(planePen, duplicatePlanetVertices(i), duplicatePlanetVertices(i + 1)) 'Draw line.
+        '    End If
+        'Next
 
     End Sub
 
@@ -919,7 +923,7 @@ Public Class blockForm
     '----------------------------------------------------------------------------------------------------------------------
     '----------------------------------------------------------------------------------------------------------------------
 
-    Private Sub createstar(ByVal data() As PointF)
+    Private Sub createstar(ByVal data() As PointFD)
 
         Dim newstar As New Star
 
@@ -933,7 +937,7 @@ Public Class blockForm
         myBrush = New SolidBrush(Color.FromArgb(rand.Next(0, 255), rand.Next(0, 255), rand.Next(0, 255)))
 
         'Initialize and add new star to the universe.
-        newstar.Init(myUniverse, myUniverseMatrix, data(0), data(2), starRadius, starBorderWidth, myBrush.Color, starType, data(1).X, data(1).Y)
+        newstar.Init(myUniverse, myUniverseMatrix, data(0), starRadius, starBorderWidth, myBrush.Color, starType, data(1).X, data(1).Y)
 
         myUniverse.AddStar(newstar)
         AddObjStatsLabel(newstar)
@@ -959,7 +963,7 @@ Public Class blockForm
         Thread.CurrentThread.Abort()
 
     End Sub
-    Private Sub createplanet(ByVal data() As PointF)
+    Private Sub createplanet(ByVal data() As PointFD)
 
         Dim newplanet As New Planet
 
@@ -970,7 +974,7 @@ Public Class blockForm
         PlanetArrayInUseFlag = True
 
         'Initialize and add new planet to planet World.
-        newplanet.Init(myUniverse, myUniverseMatrix, data(0), data(2), planetSize, planetBorderWidth, planetColor, data(1).X, data(1).Y)
+        newplanet.Init(myUniverse, myUniverseMatrix, data(0), planetSize, planetBorderWidth, planetColor, data(1).X, data(1).Y)
 
         myUniverse.AddPlanet(newplanet)
         AddObjStatsLabel(newplanet)
@@ -1001,6 +1005,11 @@ Public Class blockForm
     '----------------------------------------------------------------------------------------------------------------------
     '----------------------------------------------------------------------------------------------------------------------
 
+    Private Sub numTimeTick_ValueChanged(sender As Object, e As EventArgs) Handles numTimeTick.ValueChanged
+
+        tickValue = numTimeTick.Value
+
+    End Sub
     Private Sub Timer1_Tick(sender As Object, e As EventArgs) Handles Timer1.Tick
 
         If mouseIsDown Then
@@ -1012,24 +1021,28 @@ Public Class blockForm
     End Sub
     Private Sub UpdateLabels()
 
-        If Not StarArrayInUseFlag And Not PlanetArrayInUseFlag And myUniverse.Objects.Count > 0 Then
+        Dim objList As New List(Of StellarObject)
+        objList.AddRange(myUniverse.Objects)
 
-            StarArrayInUseFlag = True
-            PlanetArrayInUseFlag = True
+        If objList.Count > 0 Then
 
             Dim index As Integer = 0
 
-            For Each obj In myUniverse.Objects
-                If obj.IsLabelHidden Then Continue For
+            For Each obj In objList
+
+                If obj.IsLabelHidden Then
+                    Continue For
+                End If
+
                 UpdateObjStats(obj, index)
-                index = index + 1
+                index += 1
+
             Next
 
-            StarArrayInUseFlag = False
-            PlanetArrayInUseFlag = False
-
             boxObjectList.Update()
+
         End If
+
     End Sub
 
     '----------------------------------------------------------------------------------------------------------------------
@@ -1129,7 +1142,7 @@ Public Class blockForm
             moveLabels = False
         End If
 
-        If Not obj.IsMerged Then
+        If Not obj.IsMerged And index < objectLabelList.Count Then
 
             'Get object labels.
             Dim objectLocation As Label = objectLabelList(index)
@@ -1200,9 +1213,7 @@ Public Class blockForm
 
 
             Dim points() As PointF = {mousePoint}
-            Dim inverseMatrix = myUniverseMatrix.Clone
-            inverseMatrix.Invert()
-            inverseMatrix.TransformPoints(points)
+            myInverseUniverseMatrix.TransformPoints(points)
 
             mousePoint = points(0)
 
@@ -1236,38 +1247,37 @@ Public Class blockForm
 
         If creationMode.Equals("p") And Not hover Then
 
-            Dim newPlanetHalfSize As Double = (planetSize / 2) * zoomValue
-            Dim newPlanetBorderWidth As Integer = Math.Round(planetBorderWidth * zoomValue, MidpointRounding.AwayFromZero)  'Because the pen width is integer, we round it.
+            Dim planetHalfSize As Double = planetSize / 2
 
             'If planet size exceeds boundaries, don't create anything.
-            If absoluteMousePoint.X + newPlanetHalfSize + newPlanetBorderWidth > myUniverse.getImage.Width Or
-                absoluteMousePoint.Y + newPlanetHalfSize + newPlanetBorderWidth > myUniverse.getImage.Height Or
-                absoluteMousePoint.X - newPlanetHalfSize - newPlanetBorderWidth < defaultClipOffset - 1 Or
-                mousePoint.Y - newPlanetHalfSize - newPlanetBorderWidth < clipOffsetY - 1 Then 'left_top_boundary(0).Y
+            If mousePoint.X + planetHalfSize + planetBorderWidth > myUniverse.getWidth Or
+                mousePoint.Y + planetHalfSize + planetBorderWidth > myUniverse.getHeight Or
+                mousePoint.X - planetHalfSize - planetBorderWidth < clipOffsetX - 1 Or
+                mousePoint.Y - planetHalfSize - planetBorderWidth < clipOffsetY - 1 Then 'left_top_boundary(0).Y
 
                 Exit Sub
 
             End If
 
             threadList.Add(New Thread(AddressOf createplanet)) 'Each planet is handled by a different thread.
-            threadList.Last.Start(New PointF() {New PointF(mousePoint.X, mousePoint.Y), New PointF(numPlanetParamXVel.Value, numPlanetParamYVel.Value), absoluteMousePoint}) 'Start thread.
+            threadList.Last.Start(New PointFD() {New PointFD(mousePoint.X, mousePoint.Y), New PointFD(numPlanetParamXVel.Value, numPlanetParamYVel.Value),
+                                  New PointFD(absoluteMousePoint.X, absoluteMousePoint.Y)}) 'Start thread.
 
         ElseIf creationMode.Equals("s") And Not hover Then
 
-            Dim newStarRadius As Double = starRadius * zoomValue
-
             'If star size exceeds boundaries.
-            If absoluteMousePoint.X + newStarRadius > myUniverse.getImage.Width Or
-               absoluteMousePoint.Y + newStarRadius > myUniverse.getImage.Height Or
-               absoluteMousePoint.X - newStarRadius < defaultClipOffset Or
-               absoluteMousePoint.Y - newStarRadius < defaultClipOffset Then
+            If mousePoint.X + starRadius + planetBorderWidth > myUniverse.getWidth Or
+                mousePoint.Y + starRadius + planetBorderWidth > myUniverse.getHeight Or
+                mousePoint.X - starRadius - planetBorderWidth < clipOffsetX - 1 Or
+                mousePoint.Y - starRadius - planetBorderWidth < clipOffsetY - 1 Then 'left_top_boundary(0).Y
 
                 Exit Sub
 
             End If
 
             threadList.Add(New Thread(AddressOf createstar)) 'Each star is handled by a different thread.
-            threadList.Last.Start(New PointF() {New PointF(mousePoint.X, mousePoint.Y), New PointF(numStarParamXVel.Value, numStarParamYVel.Value), absoluteMousePoint}) 'Start thread.
+            threadList.Last.Start(New PointFD() {New PointFD(mousePoint.X, mousePoint.Y), New PointFD(numStarParamXVel.Value, numStarParamYVel.Value),
+                                  New PointFD(absoluteMousePoint.X, absoluteMousePoint.Y)}) 'Start thread.
 
         Else
             ObjectSelected() 'We selected an object.
@@ -1395,24 +1405,30 @@ Public Class blockForm
     End Sub
     Private Sub ObjectHover()
 
+        Dim objList As New List(Of StellarObject)
+        objList.AddRange(myUniverse.Objects.FindAll(Function(o)
+                                                        Return o.IsMerged = False And o.isVisible = True
+                                                    End Function))
         hover = False 'Reset flag.
 
-        For Each obj In myUniverse.Objects.FindAll(Function(o)
-                                                       Return o.IsMerged = False And o.isVisible = True
-                                                   End Function)
+        For Each obj In objList
+
             If obj.isStar Then
 
+                'Calculate if the point is inside the ellipse area.
                 Dim ellipseEquation As Double = (mousePoint.X - obj.CenterOfMass.X) ^ 2 / (obj.Radius ^ 2) + (mousePoint.Y - obj.CenterOfMass.Y) ^ 2 / (obj.Radius ^ 2)
 
                 If Math.Round(ellipseEquation, 2) <= 1 Then
+
                     hover = True 'Set flag.
                     hoverObject = obj
                     Exit For
+
                 End If
 
             Else
                 Dim planet As Planet = CType(obj, Planet) 'Cast object as planet.
-                Dim rec As New RectangleF(planet.GetVertices(0), New Size(planet.Size + planet.GetBorderWidth, planet.Size + planet.GetBorderWidth))
+                Dim rec As New RectangleF(New PointF(planet.GetVertices(0).X, planet.GetVertices(0).Y), New Size(planet.Size + planet.GetBorderWidth, planet.Size + planet.GetBorderWidth))
 
                 If rec.Contains(mousePoint) Then
                     hoverObject = obj
@@ -1421,6 +1437,12 @@ Public Class blockForm
                 End If
 
             End If
+
+            'This selects merged objects.
+            If obj.IsSelected Then
+                selectedObject = obj
+            End If
+
         Next
 
         'If we haven't selected anything.
@@ -1453,7 +1475,9 @@ Public Class blockForm
             End If
 
         Else
+
             If selectedObject IsNot Nothing Then
+
                 If Not selectedObject.Equals(hoverObject) Then 'If clicked on another object.
                     selectedObject.IsSelected = False
                 Else 'If clicked on self, deselect and exit sub.
@@ -1463,6 +1487,7 @@ Public Class blockForm
                     Exit Sub
 
                 End If
+
             End If
 
             selectedObject = hoverObject 'Set new selected object.
@@ -1486,10 +1511,10 @@ Public Class blockForm
                 'Round points to two (2) decimals.
                 Dim objLocX As String = Math.Round(obj.CenterOfMass.X, 2).ToString
                 Dim objLocY As String = Math.Round(obj.CenterOfMass.Y, 2).ToString
-                Dim objAccX As String = Math.Round(obj.AccX, 6).ToString
-                Dim objAccY As String = Math.Round(obj.AccY, 6).ToString
-                Dim objVelX As String = Math.Round(obj.VelX, 6).ToString
-                Dim objVelY As String = Math.Round(obj.VelY, 6).ToString
+                Dim objAccX As String = obj.AccX.ToString
+                Dim objAccY As String = obj.AccY.ToString
+                Dim objVelX As String = obj.VelX.ToString
+                Dim objVelY As String = obj.VelY.ToString
 
                 txtInfoLoc.Text = objLocX + " - " + objLocY
                 txtInfoMass.Text = obj.Mass.ToString
@@ -1587,17 +1612,17 @@ Public Class blockForm
 
     Private Sub startstars()
 
-        Dim pos As New PointF(450, 250)
-        Dim pos2 As New PointF(550, 150)
-        Dim pos3 As New PointF(650, 250)
-        Dim pos4 As New PointF(550, 350)
+        Dim pos As New PointFD(450, 250)
+        Dim pos2 As New PointFD(550, 150)
+        Dim pos3 As New PointFD(650, 250)
+        Dim pos4 As New PointFD(550, 350)
 
         'Set new random color.
         myBrush = New SolidBrush(Color.FromArgb(rand.Next(0, 255), rand.Next(0, 255), rand.Next(0, 255)))
 
         'Add and initialize new star to universe.
         myUniverse.AddStar(New Star)
-        myUniverse.Stars.Last.Init(myUniverse, defaultUniverseMatrix, pos, pos, starRadius, starBorderWidth, myBrush.Color, starType, 0, -5)
+        myUniverse.Stars.Last.Init(myUniverse, defaultUniverseMatrix, pos, starRadius, starBorderWidth, myBrush.Color, starType, 0, -5)
         AddObjStatsLabel(myUniverse.Stars.Last)
         'Set new random color.
         myBrush = New SolidBrush(Color.FromArgb(rand.Next(0, 255), rand.Next(0, 255), rand.Next(0, 255)))
@@ -1611,7 +1636,7 @@ Public Class blockForm
 
         'Add and initialize new star to universe.
         myUniverse.AddStar(New Star)
-        myUniverse.Stars.Last.Init(myUniverse, defaultUniverseMatrix, pos3, pos3, starRadius, starBorderWidth, myBrush.Color, starType, 0, 5)
+        myUniverse.Stars.Last.Init(myUniverse, defaultUniverseMatrix, pos3, starRadius, starBorderWidth, myBrush.Color, starType, 0, 5)
         AddObjStatsLabel(myUniverse.Stars.Last)
 
         'Set new random color.
@@ -1636,44 +1661,46 @@ Public Class blockForm
         If formLoaded And Not onFrame Then
 
             Dim zoomPoint As PointF = absoluteMousePoint
+            Dim universeMatrix As Drawing2D.Matrix = myUniverseMatrix.Clone
 
             'If an object is selected, make its center the zoom origin point.
             If selectedObject IsNot Nothing Then
 
                 'We need the center of the object relative to the universe image.
-                Dim relativeCenter() As PointF = {selectedObject.CenterOfMass}
+                Dim relativeCenter() As PointF = {New Point(selectedObject.CenterOfMass.X, selectedObject.CenterOfMass.Y)}
 
-                myUniverseMatrix.TransformPoints(relativeCenter)
+                universeMatrix.TransformPoints(relativeCenter)
                 zoomPoint = relativeCenter(0)
 
             End If
 
             'Apply transformations. Move -> Scale -> Move back
-            myUniverseMatrix.Translate(-zoomPoint.X, -zoomPoint.Y, Drawing2D.MatrixOrder.Append) 'Translate to opposite original point.
+            universeMatrix.Translate(-zoomPoint.X, -zoomPoint.Y, Drawing2D.MatrixOrder.Append) 'Translate to opposite original point.
 
             'Scale.
             If zoomIn Then
-                myUniverseMatrix.Scale(1 + zoomStep, 1 + zoomStep, Drawing2D.MatrixOrder.Append)
+                universeMatrix.Scale(1 + zoomStep, 1 + zoomStep, Drawing2D.MatrixOrder.Append)
             Else
-                myUniverseMatrix.Scale(1 / (1 + zoomStep), 1 / (1 + zoomStep), Drawing2D.MatrixOrder.Append) 'Scale.
+                universeMatrix.Scale(1 / (1 + zoomStep), 1 / (1 + zoomStep), Drawing2D.MatrixOrder.Append) 'Scale.
             End If
 
             'Because sometimes the above scaling method leaves trailing nines (9) and zeros (0), we manually set it to the correct zoom value.
             'After the scaling of course. This changes the width and height of the Clip rectangle by whatever the rounding error was (pretty miniscule).
             'cloneMatrix = New Drawing2D.Matrix(zoomValue, 0, 0, zoomValue, cloneMatrix.OffsetX, cloneMatrix.OffsetY) 'Set new matrix with proper scale.
-            myUniverseMatrix.Translate(zoomPoint.X, zoomPoint.Y, Drawing2D.MatrixOrder.Append) 'Translate it to original point.
-
-            'Apply transformation to graphics.
-            myUniverse.getGraphics.Transform = myUniverseMatrix.Clone
+            universeMatrix.Translate(zoomPoint.X, zoomPoint.Y, Drawing2D.MatrixOrder.Append) 'Translate it to original point.
 
             'Access graphics object only once to avoid "object in use" exceptions.
             Dim universeGraphics As Graphics = myUniverse.getGraphics
 
+            'Apply transformation to graphics.
+            myUniverseMatrix = universeMatrix.Clone
+            universeGraphics.Transform = myUniverseMatrix
+
             'Transform original width and height so we can use them as limits to our new transformation.
             Dim points() As PointF = {New PointF(defaultUniverseWidth - 1, defaultUniverseHeight - 1)}
-            Dim inverseMatrix = myUniverseMatrix.Clone
-            inverseMatrix.Invert()
-            inverseMatrix.TransformPoints(points)
+            myInverseUniverseMatrix = universeMatrix.Clone
+            myInverseUniverseMatrix.Invert()
+            myInverseUniverseMatrix.TransformPoints(points)
 
             'Update clip coordinates. Notice the clip limits don't need to be transformed since they already are.
             clipOffsetX = universeGraphics.ClipBounds.X
@@ -1682,7 +1709,7 @@ Public Class blockForm
             universeHeight = points(0).Y
 
             'Give the signal to the universe to update its objects. (new clipOffset locations etc.)
-            myUniverse.ResizeUniverse(universeGraphics.ClipBounds.Location, points(0), myUniverseMatrix.Clone)
+            myUniverse.ResizeUniverse(universeGraphics.ClipBounds.Location, points(0), myUniverseMatrix)
 
             Dim s As New MouseEventArgs(MouseButtons.None, 0, 0, 0, 0) 'Init empty mouse event.
             Me.OnMouseMove(s) 'Update UI points.
@@ -1702,24 +1729,31 @@ Public Class blockForm
             'Move universe based on offset.
             newMatrix.Translate(offsetX, offsetY, Drawing2D.MatrixOrder.Append)
 
+            'Access graphics object only once to avoid "object in use" exceptions.
+            Dim universeGraphics As Graphics = myUniverse.getGraphics
+
             'Apply transformation to graphics.
-            myUniverse.getGraphics.Transform = newMatrix.Clone
+            universeGraphics.Transform = newMatrix.Clone
 
             'Update local vars.
             myUniverseMatrix = newMatrix.Clone
             totalDragOffset.X += offsetX
             totalDragOffset.Y += offsetY
-            numStarParamXVel.Value = totalDragOffset.X
-            numStarParamYVel.Value = totalDragOffset.Y
 
-            'Update clip coordinates. We don't need to transform anything since it's a simple translate transformation.
-            clipOffsetX -= offsetX
-            clipOffsetY -= offsetY
-            universeWidth -= offsetX
-            universeHeight -= offsetY
+            'Transform original width and height so we can use them as limits to our new transformation.
+            Dim points() As PointF = {New PointF(defaultUniverseWidth - 1, defaultUniverseHeight - 1)}
+            myInverseUniverseMatrix = newMatrix.Clone
+            myInverseUniverseMatrix.Invert()
+            myInverseUniverseMatrix.TransformPoints(points)
+
+            'Update clip coordinates.
+            clipOffsetX = universeGraphics.ClipBounds.X
+            clipOffsetY = universeGraphics.ClipBounds.Y
+            universeWidth = points(0).X
+            universeHeight = points(0).Y
 
             'Give the signal to the universe to update its objects. (new clipOffset locations etc.)
-            myUniverse.ResizeUniverse(New PointF(clipOffsetX, clipOffsetY), New PointF(universeWidth, universeHeight), myUniverseMatrix.Clone)
+            myUniverse.ResizeUniverse(New PointF(clipOffsetX, clipOffsetY), New PointF(universeWidth, universeHeight), myUniverseMatrix)
 
             Dim s As New MouseEventArgs(MouseButtons.None, 0, 0, 0, 0) 'Init empty mouse event.
             Me.OnMouseMove(s) 'Update UI points.
@@ -1741,6 +1775,7 @@ Public Class blockForm
         End If
 
     End Sub
+
 End Class
 
 
@@ -1892,7 +1927,7 @@ End Class
 
 'star.starListGravityKnown.Add(Me) 'Add this star(Me) to the list of known gravities.
 
-'Dim pos As New PointF(star.objectVelX, star.objectVelY)
+'Dim pos As New PointFD(star.objectVelX, star.objectVelY)
 
 ''Move body.
 'star.Move(0, "", star.CenterOfMass.X + pos.X, star.CenterOfMass.Y + pos.Y)

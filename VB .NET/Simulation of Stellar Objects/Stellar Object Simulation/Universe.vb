@@ -143,7 +143,7 @@ Public Class Universe
     End Sub
 
     Friend Sub Init(ByVal bGraphics As Graphics, ByVal bPen As Pen, ByVal uWidth As Integer, ByVal uHeight As Integer,
-                    ByVal fWidth As Integer, ByVal fHeight As Integer, ByVal offset As PointF,
+                    ByVal fWidth As Integer, ByVal fHeight As Integer, ByVal offset As PointFD,
                     ByVal drawTraj As Boolean, ByVal _maxTrajPoints As Integer, ByVal bounce As Boolean)
         universePen = bPen
         universeOffsetX = offset.X
@@ -178,10 +178,9 @@ Public Class Universe
         universeDragged = False 'Flag to check if the universe is being dragged.
 
     End Sub
-    Friend Sub Live(ByRef starArrayUse As Boolean, ByRef planetArrayUse As Boolean,
-                    ByRef paintingStars As Boolean, ByRef paintingPlanets As Boolean)
+    Friend Sub Live(ByRef StarArrayInUseFlag As Boolean, ByRef PlanetArrayInUseFlag As Boolean)
 
-        applyAcceleration(starArrayUse, planetArrayUse, paintingStars, paintingPlanets)
+        applyAcceleration(StarArrayInUseFlag, PlanetArrayInUseFlag)
 
     End Sub
 
@@ -192,10 +191,10 @@ Public Class Universe
         starList.Add(newstar)
     End Sub
 
-    'Friend Sub SetRightBottomBoundary(ByVal point As PointF)
+    'Friend Sub SetRightBottomBoundary(ByVal point As PointFD)
     '    right_bottom_boundary(0) = point
     'End Sub
-    'Friend Sub SetLeftTopBoundary(ByVal point As PointF)
+    'Friend Sub SetLeftTopBoundary(ByVal point As PointFD)
     '    left_top_boundary(0) = point
     'End Sub
     Friend Sub SetDefaultFormWidth(ByVal width As Integer)
@@ -218,79 +217,51 @@ Public Class Universe
         maxTrajPoints = value
     End Sub
 
-    Friend Sub applyAcceleration(ByRef starArrayUse As Boolean, ByRef planetArrayUse As Boolean,
-                            ByRef paintingStars As Boolean, ByRef paintingPlanets As Boolean)
+    Friend Sub applyAcceleration(ByRef StarArrayInUseFlag As Boolean, ByRef PlanetArrayInUseFlag As Boolean)
 
-        While paintingStars Or starArrayUse Or planetArrayUse Or paintingPlanets
+        While StarArrayInUseFlag Or PlanetArrayInUseFlag
+
         End While
 
-        'If the offset is changed due to zooming, set the new offset for all stellar objects and check if they are still visible.
+        StarArrayInUseFlag = True
+        PlanetArrayInUseFlag = True
 
+        'Make local copies to avoid "object in use" exceptions, as much as possible.
+        Dim objList As List(Of StellarObject) = Objects()
+
+        'If the offset is changed due to zooming/dragging, set the new offset for all stellar objects and check if they are still visible.
         If resetOffset Then
 
-            starArrayUse = True
-            planetArrayUse = True
-
-            ResetAllOffsets(starArrayUse, planetArrayUse, paintingStars, paintingPlanets) 'Start resetting.
+            ResetAllOffsets(objList) 'Start resetting.
             resetOffset = False 'Clear global flag.
-
-            starArrayUse = False
-            planetArrayUse = False
 
         End If
 
-        'First, calculate acceleration from all stars, except the merged ones.
-        starArrayUse = True
-        planetArrayUse = True
-
-        For Each star In starList.FindAll(Function(s) s.IsMerged = False)
-
-            If star.IsMerged Then Continue For 'Check if a star merged while looping.
-            star.applyAcceleration(Objects(), gravityConstant)
-
-        Next
-
-        'Now move them.
-        For Each star In starList.FindAll(Function(s) s.IsMerged = False)
-
-            Dim newpos As New PointF(star.VelX, star.VelY) 'Set new center of mass.
-            star.Move(0, "", star.CenterOfMass.X + newpos.X, star.CenterOfMass.Y + newpos.Y) 'Move star.
-
-            If canBounce And ((universeDragged And star.isPartialVisible) Or Not star.IsOutOfBounds) Then
-                star.CheckForBounce()
-            End If
-
-        Next
-
-        starArrayUse = False
-        planetArrayUse = False
-
-        While paintingPlanets Or planetArrayUse
-        End While
-
-        'Do the same for the planets.
-        planetArrayUse = True
-
         Try
-            For Each planet In planetList
 
-                If planet.IsMerged = False Then Continue For  'Check if a planet merged while looping.
-                planet.applyAcceleration(starList, gravityConstant)
+            'First, calculate acceleration from all objects.
+            For Each obj In objList
 
+                If obj.IsMerged Then
+                    Continue For
+                End If
+
+                obj.applyAcceleration(objList, gravityConstant)
             Next
 
+            'Remove merged objects.
+            objList.RemoveAll(Function(o) o.IsMerged)
+            planetList.RemoveAll(Function(o) o.IsMerged)
+            starList.RemoveAll(Function(o) o.IsMerged)
+
             'Now move them.
-            For Each planet In planetList
+            For Each obj In objList
 
-                If planet.IsMerged = False Then
+                'Move object.
+                obj.Move(0, "", obj.CenterOfMass.X + obj.VelX, obj.CenterOfMass.Y + obj.VelY)
 
-                    Dim newpos As New PointF(planet.VelX, planet.VelY)
-                    planet.Move(0, "", planet.CenterOfMass.X + newpos.X - planet.Size / 2, planet.CenterOfMass.Y + newpos.Y - planet.Size / 2) 'Move planet.
-
-                    If canBounce And ((universeDragged And planet.isPartialVisible) Or Not planet.IsOutOfBounds) Then
-                        planet.CheckForBounce()
-                    End If
-
+                If canBounce And Not universeDragged And obj.isVisible Then
+                    obj.CheckForBounce()
                 End If
 
             Next
@@ -298,7 +269,8 @@ Public Class Universe
             Console.Write(ex.ToString)
         End Try
 
-        planetArrayUse = False
+        StarArrayInUseFlag = False
+        PlanetArrayInUseFlag = False
 
     End Sub
 
@@ -314,93 +286,24 @@ Public Class Universe
         resetOffset = True
 
     End Sub
-    Friend Sub ResetAllOffsets(ByRef starArrayUse As Boolean, ByRef planetArrayUse As Boolean,
-                            ByRef paintingStars As Boolean, ByRef paintingPlanets As Boolean)
+    Friend Sub ResetAllOffsets(ByVal objList As List(Of StellarObject))
 
-        'universeMatrix.Invert() 'This happens for a new universe matrix, every time we zoom/move the universe. In other words, the same matrix won't be inverted twice or more.
-
-        For Each star In starList
-
-            If star.IsMerged Then
-                Continue For
-            End If
+        For Each obj In objList
 
             'Set new offset.
-            star.UniverseOffsetX = universeOffsetX
-            star.UniverseOffsetY = universeOffsetY
-
-            'Check for bounce only on zoom.
-            'This will prevent the bounce effect even if it's halfway through the wall.
-            If canBounce And Not universeDragged Then
-
-                If Not star.isFullyVisible Then
-                    star.IsOutOfBounds = True
-                Else
-                    star.IsOutOfBounds = False 'Reset if visible again.
-                End If
-
-            ElseIf Not canBounce Then 'For tunneling, we don't do it, if it's more than half out of bounds.
-
-                If Not star.isPartialVisible Then
-                    star.IsOutOfBounds = True
-                Else
-                    star.IsOutOfBounds = False 'Reset if visible again.
-                End If
-
-            End If
+            obj.UniverseOffsetX = universeOffsetX
+            obj.UniverseOffsetY = universeOffsetY
 
             'Update universe matrix for the object.
-            star.UniverseMatrix = universeMatrix.Clone
+            obj.UniverseMatrix = universeMatrix.Clone
 
-            'Transform original point.
-            Dim points() As PointF = {star.OriginPoint}
-            Dim inverseMatrix = universeMatrix.Clone
-            inverseMatrix.Invert()
-            inverseMatrix.TransformPoints(points)
+            'FIX THIS.
+            If obj.isPlanet And drawTrajectories Then
 
-        Next
-
-        For Each planet In planetList
-            If planet.IsMerged Then
-                Continue For
-            End If
-
-            'Set new offset.
-            planet.UniverseOffsetX = universeOffsetX
-            planet.UniverseOffsetY = universeOffsetY
-
-            'Check for bounce only on zoom.
-            'This will prevent the bounce effect even if it's halfway through the wall.
-            If canBounce And Not universeDragged Then
-
-                If Not planet.isFullyVisible Then
-                    planet.IsOutOfBounds = True
-                Else
-                    planet.IsOutOfBounds = False 'Reset if visible again.
-                End If
-
-            ElseIf Not canBounce Then 'For tunneling, we don't do it, if it's more than half out of bounds.
-
-                If Not planet.isPartialVisible Then
-                    planet.IsOutOfBounds = True
-                Else
-                    planet.IsOutOfBounds = False 'Reset if visible again.
-                End If
-
-            End If
-
-            'Update universe matrix for the object.
-            planet.UniverseMatrix = universeMatrix.Clone
-
-            'Transform original point.
-            Dim points() As PointF = {planet.OriginPoint}
-            Dim inverseMatrix = universeMatrix.Clone
-            inverseMatrix.TransformPoints(points)
-
-            If drawTrajectories Then
+                Dim planet As Planet = CType(obj, Planet) 'Cast object as planet.
 
                 Dim tPoints = planet.TrajectoryPoints.ToArray
-                inverseMatrix.TransformPoints(tPoints)
+                planet.InverseUniverseMatrix.TransformPoints(tPoints)
                 planet.TrajectoryPoints = tPoints.ToList
 
             End If

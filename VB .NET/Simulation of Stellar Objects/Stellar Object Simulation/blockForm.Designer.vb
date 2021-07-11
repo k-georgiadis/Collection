@@ -165,7 +165,6 @@ Partial Class blockForm
         Me.numTimeTick.Font = New System.Drawing.Font("Calibri", 11.25!, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, CType(161, Byte))
         Me.numTimeTick.Location = New System.Drawing.Point(56, 28)
         Me.numTimeTick.Maximum = New Decimal(New Integer() {1500, 0, 0, 0})
-        Me.numTimeTick.Minimum = New Decimal(New Integer() {1, 0, 0, 0})
         Me.numTimeTick.Name = "numTimeTick"
         Me.numTimeTick.Size = New System.Drawing.Size(166, 26)
         Me.numTimeTick.TabIndex = 7

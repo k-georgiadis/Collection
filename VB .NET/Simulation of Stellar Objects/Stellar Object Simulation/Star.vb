@@ -38,20 +38,15 @@ Public Class Star
 
     End Sub
     Friend Sub Init(ByVal sUniverse As Universe, ByVal pUniverseMatrix As Drawing2D.Matrix,
-                    ByVal sLocation As PointF, ByVal sOriginLocation As PointF, ByVal sRadius As Double,
+                    ByVal sLocation As PointFD, ByVal sRadius As Double,
                     ByVal sBorderWidth As Integer, ByVal sColor As Color, ByVal sType As Integer,
                     Optional ByVal sVelX As Double = 0, Optional ByVal sVelY As Double = 0)
 
         objectUniverse = sUniverse 'Set universe the object is in.
         objectUniverseMatrix = pUniverseMatrix 'Set object's universe matrix.
 
-        'Transform original point.
-        Dim points() As PointF = {sOriginLocation}
-        Dim inverseMatrix = objectUniverseMatrix.Clone
-        inverseMatrix.Invert()
-        inverseMatrix.TransformPoints(points)
-
-        objectOriginPoint = points(0) 'Set absolute point for drawing the star.
+        objectInverseUniverseMatrix = objectUniverseMatrix.Clone 'Save inverted matrix.
+        objectInverseUniverseMatrix.Invert()
 
         'Set offset.
         objectUniverseOffsetX = objectUniverse.OffsetX
@@ -59,6 +54,7 @@ Public Class Star
 
         objectCenterOfMass = sLocation 'Init center of mass.
         objectRadius = sRadius 'Init object radius.
+        objectSize = objectRadius 'Use radius as size for stars.
 
         objectBorderWidth = sBorderWidth 'Init object pen border width.
         objectColor = sColor 'Init object color.
@@ -96,149 +92,19 @@ Public Class Star
         objectMerged = False 'Init state of object.
 
         objectMerging = False 'Init merging status flag.
-        objectOutOfBounds = False 'Init "out of bounds" flag.
 
     End Sub
 
-    Friend Sub applyAcceleration(ByVal objectList As List(Of StellarObject), ByVal gravityConstant As Double)
+    'Friend Sub applyAcceleration(ByVal objectList As List(Of StellarObject), ByVal gravityConstant As Double)
 
-        Dim delta As Double = 1 / 100 'Catalyst.
-        Dim distanceMultiplier = objectUniverse.getDistanceMultiplier()
+    'End Sub
 
-        'Reset accelerations.
-        objectAccX = 0
-        objectAccY = 0
+    Friend Overrides Sub Move(ByVal stepCount As Integer, ByVal Direction As String, Optional ByVal dX As Double = 0, Optional ByVal dY As Double = 0)
 
-        For Each obj In objectList.FindAll(Function(o) Not o.IsMerged And Not o.Equals(Me))
-
-            'Distance vector of two bodies.
-            Dim distanceVector As New PointF(objectCenterOfMass.X - obj.CenterOfMass.X,
-                                             objectCenterOfMass.Y - obj.CenterOfMass.Y)
-            Dim distanceLength As Double = Math.Sqrt(distanceVector.X ^ 2 + distanceVector.Y ^ 2)  'Get distance(magnitude).
-
-            'Surface of object collide. Slow down.
-            If distanceLength <= Radius + obj.Radius Then
-
-                ' delta = 1 / 1000
-
-                'Merge stars.
-                If distanceLength <= Radius Or distanceLength <= obj.Radius Then
-
-                    obj.IsMerging = True 'Set flag for merging.
-                    IsMerging = True 'Set flag for merging.
-                    delta = 1
-
-                    Dim newStarMass As Double = 0 'Let's find out first, who has the biggest mass.
-                    Dim newStarRadius As Integer = 0 'Let's find out first, who has the biggest radius.
-
-                    newStarMass = objectMass + obj.Mass
-
-                    'Calculate new velocity.
-                    Dim newVelX As Double = Math.Round((objectVelX * objectMass * delta + obj.VelX * obj.Mass * delta) / newStarMass, 10)
-                    Dim newVelY As Double = Math.Round((objectVelY * objectMass * delta + obj.VelY * obj.Mass * delta) / newStarMass, 10)
-
-                    Dim newobjectType = objectType + obj.Type 'New type is the sum of the two object types.
-                    Dim newcolor As Color = Color.FromArgb(objectColor.R / 2 + obj.Color.R / 2,
-                                                                objectColor.G / 2 + obj.Color.G / 2,
-                                                                objectColor.B / 2 + obj.Color.B / 2)
-                    If objectRadius >= obj.Radius Then
-
-                        obj.IsMerged = True 'Set merge flag for the eaten object.
-                        obj.IsSelected = False 'Clear selection flag.
-
-                        newStarRadius = objectRadius + obj.Radius / 4 'New radius is the radius of the eater + a 4th the radius of the eaten object.
-
-                        'Initialize new merged Star.
-                        Init(objectUniverse, objectUniverseMatrix, objectCenterOfMass, objectOriginPoint, newStarRadius, objectBorderWidth, newcolor, newobjectType,
-                             newVelX, newVelY)
-
-                        objectMass = newStarMass 'Set new merged mass.
-                        objectLabel.ForeColor = newcolor 'Set new label color.
-
-                    Else
-                        IsMerged = True 'Set merge flag for the eaten object.
-                        IsSelected = False 'Clear selection flag.
-
-                        newStarRadius = obj.Radius + objectRadius / 4 'New radius is the radius of eater + a 4th the radius of the eaten object.
-
-                        'Initialize new merged Star.
-                        CType(obj, Star).Init(objectUniverse, objectUniverseMatrix, obj.CenterOfMass, obj.OriginPoint, newStarRadius, objectBorderWidth, newcolor, newobjectType,
-                                  newVelX, newVelY)
-
-                        obj.Mass = newStarMass 'Set new merged mass.
-                        obj.Label.ForeColor = newcolor 'Set new label color.
-
-                    End If
-
-                    obj.IsMerging = False 'Clear flag.
-                    IsMerging = False 'Clear flag.
-                    Exit For
-                End If
-            End If
-
-            'Multiply distance to simulate "normal" distances of stellar objects in the universe.
-            distanceVector.X *= distanceMultiplier
-            distanceVector.Y *= distanceMultiplier
-
-            distanceLength = Math.Sqrt(distanceVector.X ^ 2 + distanceVector.Y ^ 2)  'Get new distance(magnitude).
-
-            'Calculate gravity force. Check below for a guide to the physics.
-            'http://www.cs.princeton.edu/courses/archive/fall03/cs126/assignments/nbody.html
-
-            'force = gravityConstant * (star.GetMass * planetMass) / Math.Pow(distanceLength, 2)
-            'F = G * (M * m) / d ^ 2
-            'Fx = F * cos(f) = F * dx / d => .... => Ax = M * dx / d^3
-            'Fy = F * sin(f) = F * dy / d => .... => Ay = M * dy / d^3
-
-            Dim inv_d As Double = 1.0 / (distanceLength * distanceLength * distanceLength)
-
-            'Precalculate force component (1/r^2) * direction (dx/r) = dx / r^3
-            Dim dx As Double = (obj.CenterOfMass.X - objectCenterOfMass.X)
-            Dim dy As Double = (obj.CenterOfMass.Y - objectCenterOfMass.Y)
-
-            dx *= inv_d
-            dy *= inv_d
-
-            'Calculate accelerations for both bodies and apply them to the velocities.
-            Dim currentAccX As Double = obj.Mass() * dx * delta
-            Dim currentAccY As Double = obj.Mass() * dy * delta
-
-            objectAccX += currentAccX
-            objectAccY += currentAccY
-
-            objectVelX += currentAccX
-            objectVelY += currentAccY
-
-            'We calculated the accelaration that is applied to this planet(Me), from the other planet(iteration).
-            'So when the other planet starts calculating it's applied accelaration from this planet(Me), it must produce the same results.
-
-            'Due to Threads not running simultaneously, the other planet will not produce the same result, because this planet(Me)
-            'has already moved a little, because it calculated it's applied accelaration, FIRST.
-
-            'So when we calculate this planet's (Me) applied accelaration, we can apply the opposite(-) accelaration to the other planet.
-
-            currentAccX = objectMass * (-dx) * delta
-            currentAccY = objectMass * (-dy) * delta
-
-            obj.AccX += currentAccX
-            obj.AccY += currentAccY
-
-            obj.AddVelX(currentAccX)
-            obj.AddVelY(currentAccY)
-        Next
-
-        'Dim newpos As New PointF(objectVelX, objectVelY)
-        'Move body.
-        'Move(0, "", objectCenterOfMass.X + newpos.X, objectCenterOfMass.Y + newpos.Y)
-
-    End Sub
-
-    Friend Sub Move(ByVal stepCount As Integer, ByVal Direction As String, Optional ByVal dX As Double = 0, Optional ByVal dY As Double = 0)
-
-        Dim currentVertex As New PointF
+        Dim currentVertex As New PointFD
 
         If Direction = "" Then
-            objectCenterOfMass = New PointF(dX, dY)
+            objectCenterOfMass = New PointFD(dX, dY)
         Else
             Select Case Direction
                 Case "u"
@@ -253,7 +119,7 @@ Public Class Star
         End If
 
     End Sub
-    Friend Sub CheckForBounce()
+    Friend Overrides Sub CheckForBounce()
 
         'Bouncing (Left, Right & Top, Bottom).
         If objectCenterOfMass.X <= objectUniverseOffsetX + objectRadius Or
@@ -286,7 +152,7 @@ Public Class Star
 
     End Sub
 
-    Friend Overrides Sub Paint(ByVal universeGraphics As Graphics)
+    Friend Overrides Sub Paint(ByVal universeGraphics As Graphics, ByVal zoomValue As Double)
 
         Dim starPen As Pen = objectUniverse.getPen
         Dim tempColor As Color = objectUniverse.getPen.Color
@@ -295,15 +161,25 @@ Public Class Star
         starPen.Color = objectColor 'Set color of star.
         starPen.Width = objectBorderWidth 'Set star border width.
 
+        Dim centerOfMass As New PointF(objectCenterOfMass.X, objectCenterOfMass.Y)
+
         'Paint ellipse.
-        universeGraphics.DrawEllipse(starPen, objectOriginPoint.X - objectRadius, objectOriginPoint.Y - objectRadius, 2 * objectRadius, 2 * objectRadius)
+        universeGraphics.DrawEllipse(starPen, centerOfMass.X - objectRadius, centerOfMass.Y - objectRadius, 2 * objectRadius, 2 * objectRadius)
         'Fill star.
-        universeGraphics.FillEllipse(starPen.Brush, objectOriginPoint.X - objectRadius, objectOriginPoint.Y - objectRadius, 2 * objectRadius, 2 * objectRadius)
+        universeGraphics.FillEllipse(starPen.Brush, centerOfMass.X - objectRadius, centerOfMass.Y - objectRadius, 2 * objectRadius, 2 * objectRadius)
 
         'Paint selection ellipse, if selected.
         If IsSelected Then
+
+            If zoomValue >= 1 Then
+                zoomValue = 1
+            Else
+                zoomValue = (2 - zoomValue) ^ 3
+            End If
+
             starPen.Color = Color.White 'Set to white for maximum contrast.
-            universeGraphics.DrawEllipse(starPen, objectOriginPoint.X - objectRadius - 2, objectOriginPoint.Y - objectRadius - 2, 2 * (objectRadius + 2), 2 * (objectRadius + 2))
+            universeGraphics.DrawEllipse(starPen, centerOfMass.X - objectRadius - 2 * CType(zoomValue, Single), centerOfMass.Y - objectRadius - 2 * CType(zoomValue, Single),
+                                         2 * (objectRadius + 2 * CType(zoomValue, Single)), 2 * (objectRadius + 2 * CType(zoomValue, Single)))
         End If
 
         starPen.Color = tempColor  'Restore color.

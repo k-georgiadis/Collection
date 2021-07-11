@@ -96,6 +96,7 @@
       <DependentUpon>blockForm.vb</DependentUpon>
       <SubType>Form</SubType>
     </Compile>
+    <Compile Include="PointFD.vb" />
     <Compile Include="Star.vb" />
     <Compile Include="Planet.vb" />
     <Compile Include="Universe.vb" />

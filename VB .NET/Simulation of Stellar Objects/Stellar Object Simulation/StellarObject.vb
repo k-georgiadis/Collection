@@ -8,10 +8,13 @@
 
 'THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
+Imports System.Drawing.Drawing2D
+
 Public Class StellarObject
 
     Protected objectUniverse As Universe
     Protected objectUniverseMatrix As Drawing2D.Matrix
+    Protected objectInverseUniverseMatrix As Drawing2D.Matrix
     Protected objectUniverseOffsetX As Double
     Protected objectUniverseOffsetY As Double
 
@@ -22,8 +25,7 @@ Public Class StellarObject
     Protected objectColor As Color
     Protected objectBorderWidth As Integer
 
-    Protected objectCenterOfMass As PointF
-    Protected objectOriginPoint As PointF 'Used as the original point without any offsets, for drawing the object.
+    Protected objectCenterOfMass As PointFD
 
     Protected objectVelX As Double
     Protected objectVelY As Double
@@ -45,8 +47,12 @@ Public Class StellarObject
     Protected objectLabelHidden As Boolean 'Is label hidden?
 
     Protected objectMerging As Boolean 'Is the object currently merging?
-    Protected objectOutOfBounds As Boolean 'Is the object out of bounds due to zooming?
     Protected objectSelected As Boolean 'Is object selected?
+
+    Protected objectTrajectoryPoints As New List(Of PointF)
+    Protected objectLastTrajectoryPointIndex As Integer
+    Protected objectMaxTrajectoryPoints As Integer
+    Protected objectTrajectoryTransformed As Boolean
 
     Public Property Universe() As Universe
         Get
@@ -56,7 +62,6 @@ Public Class StellarObject
             objectUniverse = Universe
         End Set
     End Property
-
     Public Property UniverseMatrix() As Drawing2D.Matrix
         Get
             Return objectUniverseMatrix
@@ -65,7 +70,14 @@ Public Class StellarObject
             objectUniverseMatrix = Matrix
         End Set
     End Property
-
+    Public Property InverseUniverseMatrix As Drawing2D.Matrix
+        Get
+            Return objectInverseUniverseMatrix
+        End Get
+        Set(ByVal Matrix As Drawing2D.Matrix)
+            objectInverseUniverseMatrix = Matrix
+        End Set
+    End Property
     Public Property UniverseOffsetX() As Double
         Get
             Return objectUniverseOffsetX
@@ -74,22 +86,12 @@ Public Class StellarObject
             objectUniverseOffsetX = Offset
         End Set
     End Property
-
     Public Property UniverseOffsetY() As Double
         Get
             Return objectUniverseOffsetY
         End Get
         Set(ByVal Offset As Double)
             objectUniverseOffsetY = Offset
-        End Set
-    End Property
-
-    Public Property Mass() As Double
-        Get
-            Return objectMass
-        End Get
-        Set(ByVal Value As Double)
-            objectMass = Value
         End Set
     End Property
 
@@ -101,7 +103,14 @@ Public Class StellarObject
             objectSize = Value
         End Set
     End Property
-
+    Public Property Mass() As Double
+        Get
+            Return objectMass
+        End Get
+        Set(ByVal Value As Double)
+            objectMass = Value
+        End Set
+    End Property
     Public Property Radius() As Integer
         Get
             Return objectRadius
@@ -110,7 +119,6 @@ Public Class StellarObject
             objectRadius = Value
         End Set
     End Property
-
     Public Property Type() As Integer
         Get
             Return objectType
@@ -119,7 +127,6 @@ Public Class StellarObject
             objectType = Value
         End Set
     End Property
-
     Public Property Color() As Color
         Get
             Return objectColor
@@ -128,7 +135,6 @@ Public Class StellarObject
             objectColor = Color
         End Set
     End Property
-
     Public Property BorderWidth() As Integer
         Get
             Return objectBorderWidth
@@ -138,21 +144,12 @@ Public Class StellarObject
         End Set
     End Property
 
-    Public Property CenterOfMass() As PointF
+    Public Property CenterOfMass() As PointFD
         Get
             Return objectCenterOfMass
         End Get
-        Set(ByVal Point As PointF)
+        Set(ByVal Point As PointFD)
             objectCenterOfMass = Point
-        End Set
-    End Property
-
-    Public Property OriginPoint As PointF
-        Get
-            Return objectOriginPoint
-        End Get
-        Set(value As PointF)
-            objectOriginPoint = value
         End Set
     End Property
 
@@ -164,7 +161,6 @@ Public Class StellarObject
             objectVelX = Value
         End Set
     End Property
-
     Public Property VelY() As Double
         Get
             Return objectVelY
@@ -182,7 +178,6 @@ Public Class StellarObject
             objectAccX = value
         End Set
     End Property
-
     Public Property AccY As Double
         Get
             Return objectAccY
@@ -209,7 +204,6 @@ Public Class StellarObject
             objectTransitionDirection = Direction
         End Set
     End Property
-
     Public Property DuplicatePointRight() As PointF
         Get
             Return objectDuplicatePointRight
@@ -218,7 +212,6 @@ Public Class StellarObject
             objectDuplicatePointRight = Point
         End Set
     End Property
-
     Public Property DuplicatePointLeft() As PointF
         Get
             Return objectDuplicatePointLeft
@@ -227,7 +220,6 @@ Public Class StellarObject
             objectDuplicatePointLeft = Point
         End Set
     End Property
-
     Public Property DuplicatePointTop() As PointF
         Get
             Return objectDuplicatePointTop
@@ -236,7 +228,6 @@ Public Class StellarObject
             objectDuplicatePointTop = Point
         End Set
     End Property
-
     Public Property DuplicatePointBottom() As PointF
         Get
             Return objectDuplicatePointBottom
@@ -254,7 +245,6 @@ Public Class StellarObject
             objectLabel = Label
         End Set
     End Property
-
     Public Property IsLabelHidden() As Boolean
         Get
             Return objectLabelHidden
@@ -272,16 +262,6 @@ Public Class StellarObject
             objectMerging = Status
         End Set
     End Property
-
-    Public Property IsOutOfBounds() As Boolean
-        Get
-            Return objectOutOfBounds
-        End Get
-        Set(ByVal Status As Boolean)
-            objectOutOfBounds = Status
-        End Set
-    End Property
-
     Public Property IsSelected() As Boolean
         Get
             Return objectSelected
@@ -291,20 +271,37 @@ Public Class StellarObject
         End Set
     End Property
 
+    Public Property TrajectoryPoints() As List(Of PointF)
+        Get
+            Return objectTrajectoryPoints
+        End Get
+        Set(value As List(Of PointF))
+            objectTrajectoryPoints = value
+        End Set
+    End Property
+    Public Property trajectoryTransformed() As Boolean
+        Get
+            Return objectTrajectoryTransformed
+        End Get
+        Set(value As Boolean)
+            objectTrajectoryTransformed = value
+        End Set
+    End Property
+
     'Misc properties.
-    Public ReadOnly Property isVisibleX() As Boolean
+    Public Overridable ReadOnly Property isVisibleX() As Boolean
         Get
             Return objectCenterOfMass.X >= objectUniverseOffsetX - objectRadius And
                    objectCenterOfMass.X <= objectUniverse.getWidth + objectRadius 'If inside the X visible area at all.
         End Get
     End Property
-    Public ReadOnly Property isVisibleY() As Boolean
+    Public Overridable ReadOnly Property isVisibleY() As Boolean
         Get
             Return objectCenterOfMass.Y >= objectUniverseOffsetY - objectRadius And
                    objectCenterOfMass.Y <= objectUniverse.getHeight + objectRadius 'If inside the Y visible area at all.
         End Get
     End Property
-    Public ReadOnly Property isVisible() As Boolean
+    Public Overridable ReadOnly Property isVisible() As Boolean
         Get
             Return isVisibleX() And isVisibleY() 'If inside the X,Y visible area.
         End Get
@@ -346,7 +343,182 @@ Public Class StellarObject
         objectVelY += AccY
     End Sub
 
-    Friend Overridable Sub Paint(ByVal universeGraphics As Graphics)
+    Friend Overridable Sub applyAcceleration(ByVal objList As List(Of StellarObject), ByVal gravityConstant As Double)
+
+        Dim delta As Double = 1 / 100 'Catalyst.
+        Dim distanceMultiplier = objectUniverse.getDistanceMultiplier()
+
+        'Reset accelerations.
+        objectAccX = 0
+        objectAccY = 0
+
+        For Each obj In objList.FindAll(Function(o) Not o.Equals(Me))
+
+            If obj.IsMerged Then Continue For
+
+            'Don't let planets interact with one another.
+            If obj.isPlanet And Me.isPlanet Then Continue For
+
+            'Distance vector of two bodies.
+            Dim distanceVector As New PointFD(objectCenterOfMass.X - obj.CenterOfMass.X,
+                                             objectCenterOfMass.Y - obj.CenterOfMass.Y)
+            Dim distanceLength As Double = Math.Sqrt(distanceVector.X ^ 2 + distanceVector.Y ^ 2)  'Get distance(magnitude).
+
+            'Surface of objects collide. Don't merge planets with planets yet.
+            If (obj.isStar Or Me.isStar) And distanceLength <= Radius + obj.Radius Then
+
+                ' delta = 1 / 1000 'Slow down.
+
+                'Merge objects.
+                If distanceLength <= Radius Or distanceLength <= obj.Radius Then
+
+                    obj.IsMerging = True
+                    IsMerging = True
+
+                    delta = 1
+
+                    Dim newStarMass As Double = 0
+                    Dim newStarRadius As Integer = 0
+
+                    newStarMass = objectMass + obj.Mass
+
+                    'Calculate new velocity.
+                    Dim newVelX As Double = Math.Round((objectVelX * objectMass * delta + obj.VelX * obj.Mass * delta) / newStarMass, 10)
+                    Dim newVelY As Double = Math.Round((objectVelY * objectMass * delta + obj.VelY * obj.Mass * delta) / newStarMass, 10)
+
+                    'New type is the sum of the two object types.
+                    Dim newobjectType = objectType + obj.Type
+
+                    'New color is the sum of their halves.
+                    Dim newcolor As Color = Color.FromArgb(objectColor.R / 2 + obj.Color.R / 2,
+                                                                objectColor.G / 2 + obj.Color.G / 2,
+                                                                objectColor.B / 2 + obj.Color.B / 2)
+                    If objectRadius >= obj.Radius Then
+
+                        obj.IsMerged = True
+
+                        newStarRadius = objectRadius + obj.Radius / 4 'New radius is the radius of the eater + a 4th the radius of the eaten object.
+
+                        'Initialize new merged Star.
+                        CType(Me, Star).Init(objectUniverse, objectUniverseMatrix, CenterOfMass, newStarRadius, objectBorderWidth, newcolor, newobjectType,
+                             newVelX, newVelY)
+
+                        'Selected merged object, if the smaller one was selected.
+                        If obj.IsSelected Then
+                            objectSelected = obj.IsSelected
+                        End If
+
+                        objectMass = newStarMass
+                        objectLabel.ForeColor = newcolor
+
+                    Else
+                        IsMerged = True
+
+                        newStarRadius = obj.Radius + objectRadius / 4 'New radius is the radius of eater + a 4th the radius of the eaten object.
+
+                        'Initialize new merged Star.
+                        CType(obj, Star).Init(objectUniverse, objectUniverseMatrix, obj.CenterOfMass, newStarRadius, objectBorderWidth, newcolor, newobjectType,
+                                  newVelX, newVelY)
+
+                        'Selected merged object, if the smaller one was selected.
+                        If objectSelected Then
+                            obj.IsSelected = objectSelected
+                        End If
+
+                        obj.Mass = newStarMass
+                        obj.Label.ForeColor = newcolor
+
+                    End If
+
+                    obj.IsMerging = False
+                    IsMerging = False
+
+                    Continue For
+
+                End If
+            End If
+
+            'Multiply distance to simulate "normal" distances of stellar objects in the universe.
+            distanceVector.X *= distanceMultiplier
+            distanceVector.Y *= distanceMultiplier
+
+            distanceLength = Math.Sqrt(distanceVector.X ^ 2 + distanceVector.Y ^ 2)  'Get new distance(magnitude).
+
+            'Calculate gravity force. Check below for a guide to the physics.
+            'http://www.cs.princeton.edu/courses/archive/fall03/cs126/assignments/nbody.html
+
+            'force = gravityConstant * (star.GetMass * planetMass) / Math.Pow(distanceLength, 2)
+            'F = G * (M * m) / d ^ 2
+            'Fx = F * cos(f) = F * dx / d => .... => Ax = M * dx / d^3
+            'Fy = F * sin(f) = F * dy / d => .... => Ay = M * dy / d^3
+
+            Dim inv_d As Double = 1.0 / (distanceLength * distanceLength * distanceLength)
+
+            'Precalculate force component (1/r^2) * direction (dx/r) = dx / r^3
+            Dim dx As Double = (obj.CenterOfMass.X - objectCenterOfMass.X)
+            Dim dy As Double = (obj.CenterOfMass.Y - objectCenterOfMass.Y)
+
+            dx *= inv_d
+            dy *= inv_d
+
+            'Calculate accelerations for both bodies and apply them to the velocities.
+            Dim currentAccX As Double = obj.Mass() * dx * delta
+            Dim currentAccY As Double = obj.Mass() * dy * delta
+
+            objectAccX += currentAccX
+            objectAccY += currentAccY
+
+            objectVelX += currentAccX
+            objectVelY += currentAccY
+
+            'We calculated the accelaration that is applied to this object (Me), from the other object (obj).
+            'So when the other object starts calculating it's applied accelaration from this object (Me), it must produce the same results.
+
+            'Due to Threads not running simultaneously, the other object will not produce the same result, because this object (Me)
+            'has already moved a little, because it calculated it's applied accelaration, FIRST.
+
+            'So when we calculate this object's (Me) applied accelaration, we can apply the opposite(-) accelaration to the other planet.
+
+            currentAccX = objectMass * (-dx) * delta
+            currentAccY = objectMass * (-dy) * delta
+
+            Dim oldacc As Double = obj.AccX
+
+            obj.AccX += currentAccX
+            obj.AccY += currentAccY
+
+            If Math.Abs(oldacc - obj.AccX) > 0.1 Then
+                Dim kek = 1
+
+            End If
+            obj.AddVelX(currentAccX)
+            obj.AddVelY(currentAccY)
+        Next
+
+        'Dim newpos As New PointFD(objectVelX, objectVelY)
+        'Move body.
+        'Move(0, "", objectCenterOfMass.X + newpos.X, objectCenterOfMass.Y + newpos.Y)
+
+    End Sub
+    Friend Overridable Sub Move(ByVal stepCount As Integer, ByVal Direction As String, Optional ByVal dX As Double = 0, Optional ByVal dY As Double = 0)
+
+    End Sub
+    Friend Overridable Sub CheckForBounce()
+
+    End Sub
+
+    Friend Sub AddTrajectoryPoint(ByVal point As PointF)
+
+        objectTrajectoryPoints.Add(point)
+
+    End Sub
+    Friend Sub ClearTrajectory()
+
+        objectTrajectoryPoints.RemoveRange(0, objectTrajectoryPoints.Count)
+
+    End Sub
+
+    Friend Overridable Sub Paint(ByVal universeGraphics As Graphics, ByVal zoomValue As Double)
 
     End Sub
 
