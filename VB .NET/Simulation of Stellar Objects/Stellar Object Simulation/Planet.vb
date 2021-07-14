@@ -12,7 +12,6 @@
 Public Class Planet
     Inherits StellarObject
     Private planetVertices As New List(Of PointFD)
-    Private planetUniverseMatrix As Drawing2D.Matrix
 
     Public ReadOnly Property GetVertices() As List(Of PointFD)
         Get
@@ -48,8 +47,7 @@ Public Class Planet
     End Sub
     Friend Sub Init(ByVal pUniverse As Universe, ByVal pUniverseMatrix As Drawing2D.Matrix, ByVal pLocation As PointFD,
                     ByVal pSize As Integer, ByVal pBorderWidth As Integer, ByVal pColor As Color,
-                    Optional ByVal pVelX As Double = 0, Optional ByVal pVelY As Double = 0
-                    )
+                     Optional ByVal pVel As PointFD = Nothing)
 
         objectUniverse = pUniverse 'Set universe the object is in.
         objectUniverseMatrix = pUniverseMatrix 'Set object's universe matrix.
@@ -83,19 +81,17 @@ Public Class Planet
         objectDuplicatePointTop = New PointF(0, 0)
         objectDuplicatePointBottom = New PointF(0, 0)
 
-        objectLabel = New Label 'Init object label.
-        objectLabel.ForeColor = objectColor 'Set label color.
-        objectLabelHidden = False 'Init state of object label.
+        objectListItem = New ListViewItem 'Init object label.
+        objectListItem.ForeColor = objectColor 'Set label color.
 
         'Initiliaze accelerations.
         'Here we can give extra boosts to our created objects. Don't forget to account for the distance multiplier.
-        objectVelX = pVelX / objectUniverse.getDistanceMultiplier 'Init X Velocity.
-        objectVelY = pVelY / objectUniverse.getDistanceMultiplier 'Init Y Velocity.
+        objectVelX = pVel.X / objectUniverse.getDistanceMultiplier 'Init X Velocity.
+        objectVelY = pVel.Y / objectUniverse.getDistanceMultiplier 'Init Y Velocity.
         objectAccX = 0 'Init Acceleration X.
         objectAccY = 0 'Init Acceleration Y.
 
-        objectMaxTrajectoryPoints = objectUniverse.getMaxTrajPoints() 'Init max number of trajectory points.
-        objectLastTrajectoryPointIndex = -1 'Set starting position of index.
+        objectMaxTrajectoryPoints = objectUniverse.MaxTrajectoryPoints 'Init max number of trajectory points.
 
         objectSelected = False 'Clear selection flag.
 
@@ -211,73 +207,7 @@ Public Class Planet
 
         End If
 
-        Dim maxPoints As Integer = objectUniverse.getMaxTrajPoints() 'Get maximum number of points to use for the trajectory.
-
-        'If new value is given, reset list.
-        If maxPoints <> objectMaxTrajectoryPoints And objectTrajectoryPoints.Count > 0 Then
-            ClearTrajectory() 'Remove all.
-            objectMaxTrajectoryPoints = maxPoints 'Set new value.
-        End If
-
-        'Draw trajectory if said so.
-        If objectUniverse.drawTraj Then
-
-            'Transform the trajectory point.
-            Dim transformedTrajectoryPoint() As PointF = {New Point(objectCenterOfMass.X, objectCenterOfMass.Y)}
-            UniverseMatrix.TransformPoints(transformedTrajectoryPoint)
-
-            'If there are any trajectory points.
-            If objectTrajectoryPoints.Count > 0 Then
-                'If center of mass is not the same, create new trajectory point.
-                'If Not transformedTrajectoryPoint(0).Equals(planetTrajectoryPoints.Last) Then
-                '    'If we reached the maximum amount of points we can use, replace points from the start.
-                '    If planetTrajectoryPoints.Count = maxPoints Then
-
-                '        'If index is at the end, start from the head again.
-                '        If planetLastTrajectoryPointIndex = maxPoints - 1 Then
-                '            planetLastTrajectoryPointIndex = 0 'Set index to the head of the list.
-                '        Else
-                '            planetLastTrajectoryPointIndex += 1 'Increment index.
-                '        End If
-                '        'planetTrajectoryPoints.Item(planetLastTrajectoryPointIndex) = transformedTrajectoryPoint(0) 'Replace that point with the new one.
-                '    Else
-                '        planetTrajectoryPoints.Add(transformedTrajectoryPoint(0))
-                '        planetLastTrajectoryPointIndex += 1 'Increment index.
-                '    End If
-                'End If
-
-                Dim previousPoint As PointF = objectTrajectoryPoints.First 'Init with first point.
-
-                'But if we 're full and we are recycling the points, init with the last.
-                If objectTrajectoryPoints.Count = maxPoints Then
-                    previousPoint = objectTrajectoryPoints.Last
-                End If
-
-                Dim beginTailing As Boolean = False 'Have we finished drawing the recycled points? Time to start drawing the tail.
-
-                For Each point In objectTrajectoryPoints
-
-                    'If we reached the old points (tail), stop and start creating the tail.
-                    'If Not beginTailing And planetTrajectoryPoints.IndexOf(point) > planetLastTrajectoryPointIndex Then
-                    '    previousPoint = point 'Reset previous point with current one.
-                    '    beginTailing = True 'Raise flag as to not enter again.
-                    'End If
-
-                    'Check for violent changes in trajectory, usually because of tunneling.
-                    'The value is random, it could be 50, 100 etc. as long it's smaller than the universe width/height so we can detect tunneling.
-                    If Math.Abs(point.X - previousPoint.X) < 1120 And Math.Abs(point.Y - previousPoint.Y) < 1120 Then
-                        'planetGraphics.DrawLine(planetPen, point, previousPoint)
-                        objectUniverse.getImage.SetPixel(point.X, point.Y, Me.Color)
-                    End If
-                    previousPoint = point
-                Next
-            Else
-                objectTrajectoryPoints.Add(transformedTrajectoryPoint(0)) 'Add first point.
-                objectLastTrajectoryPointIndex = 0 'Reset index.
-            End If
-
-        End If
-
+        DrawTrajectory(universeGraphics, planetPen)
         planetPen.Width = tempWidth 'Restore original width.
 
     End Sub

@@ -64,9 +64,8 @@ Public Class blockForm
     Dim clipOffsetY As Double = defaultClipOffset
     Dim totalDragOffset As New PointF(0, 0)
 
-    'Clip offset width/height because when zooming it changes. It's X/Y coordinate isn't its length anymore.
-    'Dim clipOffsetWidth As Integer = Math.Abs(clipOffsetX - left_top_boundary(0).X)
-    'Dim clipOffsetHeight As Integer = Math.Abs(clipOffsetY - left_top_boundary(0).Y)
+    'Thread for each object. They get destroyed as soon as the object is fully created.
+    Dim threadList As New List(Of Threading.Thread)
 
     Dim mousePoint As New PointF
     Dim absoluteMousePoint As New PointF
@@ -74,21 +73,18 @@ Public Class blockForm
     Dim zoomValue As Double = 1.0 'Default zoom value.
     Dim zoomStep As Double = 0.05 'Default zoom step.
 
-    Dim threadList As New List(Of Threading.Thread)
-
-    Dim objectLabelList As New List(Of Label)
-    Dim labelSpace As Integer = 20
-    Dim moveLabels As Boolean = False
-
     Dim dragPoint As New PointF
     Dim dragStart As Boolean = False
     Dim oldOffset As New PointF(0, 0)
+    Dim resetOffset As Boolean = False
 
     Dim ctrlKeyDown As Boolean = False
     Dim mouseIsDown As Boolean = False
     Dim counter As Integer = 0
 
     Dim selectedObject As StellarObject = Nothing
+    Dim followingObject As Boolean = False
+    Dim relativeTrajectories As Boolean = False
     Dim hoverObject As StellarObject = Nothing
     Dim hover As Boolean = False
 
@@ -114,6 +110,7 @@ Public Class blockForm
     Dim debug_stopwatch As New Stopwatch()
 
     Dim tickValue As Integer
+    Dim updateCounter As Integer = 0
     Dim frameCounter As Integer = 0
     Dim FPS As Integer = 0
     Dim fpsTimer As New Timers.Timer(1000) '1 second.
@@ -163,8 +160,8 @@ Public Class blockForm
         ' threadList.Last.Start(New PointFD(750, 350)) 'Start thread.
 
         'Init planet universe.
-        myUniverse.Init(formGraphics, myPen, universeWidth, universeHeight, formDefaultWidth, formDefaultHeight, New PointFD(clipOffsetX, clipOffsetY),
-                        generalTraj.Checked, numTraj.Value, collisionBounce.Checked)
+        myUniverse.Init(formGraphics, defaultUniverseMatrix, myPen, universeWidth, universeHeight, formDefaultWidth, formDefaultHeight, New PointFD(clipOffsetX, clipOffsetY), numTraj.Value)
+
         myUniverse.getGraphics.Clear(Color.Black)
 
         'Set default transformation matrix.
@@ -198,16 +195,30 @@ Public Class blockForm
         While 1
 
             'Stop universe if paused.
-            If UniversePaused Then Continue While
+            If UniversePaused Or paintingStars Or paintingPlanets Then Continue While
 
-            myUniverse.Live(StarArrayInUseFlag, PlanetArrayInUseFlag) 'Start calculating accelarations and move objects.
-            frameCounter += 1 'Count frames.
+            'Start calculating accelarations and move objects.
+            myUniverse.Live(StarArrayInUseFlag, PlanetArrayInUseFlag)
+            frameCounter += 1
 
             If tickValue > 0 Then
                 Thread.Sleep(tickValue) 'Delay.
             End If
 
         End While
+
+    End Sub
+    Private Sub btnPauseUniverse_Click(sender As Object, e As EventArgs) Handles btnPauseUniverse.Click
+
+        If UniversePaused Then
+            btnPauseUniverse.Text = "Pause"
+            lblStatusMessage.Text = ""
+            UniversePaused = False
+        Else
+            btnPauseUniverse.Text = "Resume"
+            lblStatusMessage.Text = "Paused"
+            UniversePaused = True
+        End If
 
     End Sub
 
@@ -227,30 +238,37 @@ Public Class blockForm
         paintingStars = True
         paintingPlanets = True
         'debug_stopwatch = Stopwatch.StartNew()
+
         Dim objList As New List(Of StellarObject)
+
         Try
-
-
             objList.AddRange(myUniverse.Objects)
 
-        Catch ex As Exception
-            Console.WriteLine(ex.ToString)
-        End Try
-        Try
+
+            'If the offset is changed due to zooming/dragging, set the new offset for all stellar objects and check if they are still visible.
+            If resetOffset Then
+
+                myUniverse.ResetAllOffsets(objList) 'Start resetting.
+                resetOffset = False
+
+            End If
 
             For Each obj In objList.FindAll(Function(o) o.IsMerged = False And o.isVisible)
 
                 obj.Paint(universeGraphics, zoomValue)
 
+                'Follow object, if said so.
+                followObject(followingObject)
+
                 'Tunneling.
-                If obj.isStar And collisionTunnel.Checked And Not dragStart Then
+                If obj.isStar And radCollisionTunnel.Checked And Not dragStart Then
 
                     Star_CheckForLeftTunneling(obj, obj.CenterOfMass, universeGraphics)   'Left Wall.
                     Star_CheckForRightTunneling(obj, obj.CenterOfMass, universeGraphics)  'Right Wall.
                     Star_CheckForTopTunneling(obj, obj.CenterOfMass, universeGraphics)    'Top Wall.
                     Star_CheckForBottomTunneling(obj, obj.CenterOfMass, universeGraphics) 'Bottom Wall.
 
-                ElseIf collisionTunnel.Checked And Not dragStart Then
+                ElseIf radCollisionTunnel.Checked And Not dragStart Then
 
                     Planet_CheckForLeftTunneling(obj, obj.CenterOfMass, universeGraphics)
                     Planet_CheckForRightTunneling(obj, obj.CenterOfMass, universeGraphics)
@@ -259,16 +277,18 @@ Public Class blockForm
                 End If
 
             Next
+
         Catch ex As Exception
             Console.WriteLine(ex.ToString)
         End Try
+
         'debug_stopwatch.Stop()
         'Console.WriteLine("  Painted stars in: " + debug_stopwatch.ElapsedMilliseconds.ToString)
         paintingStars = False
         paintingPlanets = False
 
     End Sub
-    Private Delegate Sub FrameDelegate()
+
     Private Sub Frame(ByVal universeGraphics As Graphics)
 
         While 1
@@ -279,7 +299,7 @@ Public Class blockForm
 
             'Update world.
             Try
-                If canvasClear.Checked Then
+                If chkCanvasClear.Checked Then
                     universeGraphics.Clear(Color.Black) 'Clear image.
                 End If
 
@@ -327,26 +347,16 @@ Public Class blockForm
         Next
         threadList.RemoveRange(0, threadList.Count)
 
-        For Each label In objectLabelList
-            label.Parent = Nothing
-        Next
-        objectLabelList.RemoveRange(0, objectLabelList.Count)
-
-        lblInfoVel.Visible = False
-        lblInfoAcc.Visible = False
-
-        numPlanetParamXVel.Value = 0
-        numPlanetParamYVel.Value = 0
-        numStarParamXVel.Value = 0
-        numStarParamYVel.Value = 0
+        numParamXVel.Value = 0
+        numParamYVel.Value = 0
         numTimeTick.Value = 1
 
         myUniverse.Stars.RemoveRange(0, myUniverse.Stars.Count)
         myUniverse.Planets.RemoveRange(0, myUniverse.Planets.Count)
 
-        canvasClear.Checked = True
-        modePlanet.Checked = True
-        collisionTunnel.Checked = True
+        chkCanvasClear.Checked = True
+        radModePlanet.Checked = True
+        radCollisionTunnel.Checked = True
 
         'Reset clip offset.
         clipOffsetX = defaultClipOffset
@@ -937,10 +947,10 @@ Public Class blockForm
         myBrush = New SolidBrush(Color.FromArgb(rand.Next(0, 255), rand.Next(0, 255), rand.Next(0, 255)))
 
         'Initialize and add new star to the universe.
-        newstar.Init(myUniverse, myUniverseMatrix, data(0), starRadius, starBorderWidth, myBrush.Color, starType, data(1).X, data(1).Y)
+        newstar.Init(myUniverse, myUniverseMatrix, data(0), starRadius, starBorderWidth, myBrush.Color, starType, data(1))
 
         myUniverse.AddStar(newstar)
-        AddObjStatsLabel(newstar)
+        AddListItem(newstar, myUniverse.Objects)
 
         StarArrayInUseFlag = False
 
@@ -974,10 +984,10 @@ Public Class blockForm
         PlanetArrayInUseFlag = True
 
         'Initialize and add new planet to planet World.
-        newplanet.Init(myUniverse, myUniverseMatrix, data(0), planetSize, planetBorderWidth, planetColor, data(1).X, data(1).Y)
+        newplanet.Init(myUniverse, myUniverseMatrix, data(0), planetSize, planetBorderWidth, planetColor, data(1))
 
         myUniverse.AddPlanet(newplanet)
-        AddObjStatsLabel(newplanet)
+        AddListItem(newplanet, myUniverse.Objects)
 
         PlanetArrayInUseFlag = False
 
@@ -1005,18 +1015,29 @@ Public Class blockForm
     '----------------------------------------------------------------------------------------------------------------------
     '----------------------------------------------------------------------------------------------------------------------
 
-    Private Sub numTimeTick_ValueChanged(sender As Object, e As EventArgs) Handles numTimeTick.ValueChanged
-
-        tickValue = numTimeTick.Value
-
-    End Sub
     Private Sub Timer1_Tick(sender As Object, e As EventArgs) Handles Timer1.Tick
 
+        'Start counting.
         If mouseIsDown Then
-            counter = counter + 1 'Start counting.
-        End If
+            counter += 1
+        Else
+            updateCounter += 1
 
-        UpdateLabels()
+            'Update coordinates while moving.
+            If followingObject Then
+                Dim s As New MouseEventArgs(MouseButtons.None, 0, 0, 0, 0) 'Init empty mouse event.
+                Me.OnMouseMove(s) 'Update UI points.
+            End If
+
+            If updateCounter >= 3 Then
+
+                If Not UniversePaused Then
+                    UpdateLabels()
+                End If
+
+                updateCounter = 0
+            End If
+        End If
 
     End Sub
     Private Sub UpdateLabels()
@@ -1026,20 +1047,30 @@ Public Class blockForm
 
         If objList.Count > 0 Then
 
-            Dim index As Integer = 0
+            Dim removedListItems As New List(Of Integer) 'List of list item indexes to be removed.
 
-            For Each obj In objList
+            For Each item In objectListView.Items
 
-                If obj.IsLabelHidden Then
+                'Get stellar object of list item.
+                Dim obj As StellarObject = objList.Find(Function(o)
+                                                            Return o.ListItem.Equals(item)
+
+                                                        End Function)
+
+                'If stellar object is not found, that means it got merged. Remove item from list later.
+                If obj Is Nothing Then
+                    removedListItems.Add(objectListView.Items.IndexOf(item))
                     Continue For
                 End If
 
-                UpdateObjStats(obj, index)
-                index += 1
+                UpdateListItem(obj, item)
 
             Next
 
-            boxObjectList.Update()
+            'Remove items for merged stars.
+            For Each item In removedListItems
+                objectListView.Items.RemoveAt(item)
+            Next
 
         End If
 
@@ -1052,148 +1083,160 @@ Public Class blockForm
     '----------------------------------------------------------------------------------------------------------------------
     '----------------------------------------------------------------------------------------------------------------------
 
-    Private Delegate Sub AddObjStatsLabelDelegate(ByVal obj As StellarObject)
-    Private Sub AddObjStatsLabel(ByVal obj As StellarObject)
+    Private Delegate Sub AddListItemDelegate(ByVal obj As StellarObject, ByVal objList As List(Of StellarObject))
+    Private Sub AddListItem(ByVal obj As StellarObject, ByVal objList As List(Of StellarObject))
 
-        If boxObjectList.InvokeRequired Then
+        If objectListView.InvokeRequired Then
             Try
-                panelObjectList.Invoke(New AddObjStatsLabelDelegate(AddressOf AddObjStatsLabel), New Object() {obj})
+                objectListView.Invoke(New AddListItemDelegate(AddressOf AddListItem), New Object() {obj, objList})
             Catch ex As Exception
                 End
             End Try
         Else
-            Dim firstPlanetLabelIndex As Integer = objectLabelList.FindIndex(0, Function(l) l.Text.Contains("Planet") = True)
-            Dim lastObjectIndex As Integer = myUniverse.Objects.FindAll(Function(o) o.IsMerged = False).Count - 1
 
-            If obj.isStar And firstPlanetLabelIndex >= 0 Then
-                lastObjectIndex = firstPlanetLabelIndex 'Replace index with proper one for stars.
-            End If
-
-            Dim objectLocation As New Label
-            Dim brightness As Single = obj.Label.ForeColor.GetBrightness
-
-            'Set positions for locations.
-            objectLocation.Parent = panelObjectList
-            objectLocation.Location = New Point(labelSpace / 2, lastObjectIndex * labelSpace)
-            objectLocation.Font = New Font("Calibri", 11.25)
-            objectLocation.AutoSize = True
-            objectLocation.ForeColor = obj.Label.ForeColor
+            Dim objectItem As ListViewItem = obj.ListItem
+            Dim brightness As Single = obj.ListItem.ForeColor.GetBrightness
+            objectItem.ForeColor = obj.ListItem.ForeColor
 
             If brightness > 0.4 Then
-                objectLocation.BackColor = Color.Black
+                objectItem.BackColor = Color.Black
             Else
-                objectLocation.BackColor = Color.White
+                objectItem.BackColor = Color.White
             End If
 
-            'Set label status.
-            obj.IsLabelHidden = False 'Not hidden.
+            'Get group to assign the object to.
+            Dim group As String
+            Dim name As String
 
-            'Add label to list.
-            'Add star label behind planet labels.
             If obj.isStar Then
-
-                'In case no planets are added yet.
-                If firstPlanetLabelIndex < 0 Then
-                    objectLabelList.Add(objectLocation) 'Just add them at the end as we normally would.
-                Else
-                    moveLabels = True 'Signal main thread to move the planet labels one step down.
-                    objectLabelList.Insert(firstPlanetLabelIndex, objectLocation) 'Insert label.
-                End If
+                group = "Stars"
+                name = "Star"
+            ElseIf obj.isPlanet Then
+                group = "Planets"
+                name = "Planet"
             Else
-                objectLabelList.Add(objectLocation)  'Planet labels go at the end, after star labels.
+                group = "Default"
+                name = ""
             End If
 
-            'Move label below.
-            If objectLabelList.Count > 1 And moveLabels = False Then
-                If objectLocation.Location.Y = objectLabelList(objectLabelList.Count - 2).Location.Y Then
-                    objectLocation.Location = New Point(objectLocation.Location.X, objectLocation.Location.Y + labelSpace)
-                End If
-            End If
+            'Get index of item.
+            Dim index As Integer = objectListView.Groups(group).Items.Count
+            objectItem.Name = name + index.ToString
+            objectItem.Text = objectItem.Name
 
-            'Show label.
-            objectLocation.Show()
+            'Now add sub-items, one for each statistic (location, acceleration, etc.) we want to display. The name is displayed in the first (0) item.
+            objectItem.SubItems.Add("")
+            objectItem.SubItems.Item(1).Name = "objItemLocX"
+
+            objectItem.SubItems.Add("")
+            objectItem.SubItems.Item(2).Name = "objItemLocY"
+
+            objectItem.SubItems.Add("")
+            objectItem.SubItems.Item(3).Name = "objItemAcc"
+
+            objectItem.SubItems.Add("")
+            objectItem.SubItems.Item(4).Name = "objItemAccX"
+
+            objectItem.SubItems.Add("")
+            objectItem.SubItems.Item(5).Name = "objItemAccY"
+
+            objectItem.SubItems.Add("")
+            objectItem.SubItems.Item(6).Name = "objItemVel"
+
+            objectItem.SubItems.Add("")
+            objectItem.SubItems.Item(7).Name = "objItemVelX"
+
+            objectItem.SubItems.Add("")
+            objectItem.SubItems.Item(8).Name = "objItemVelY"
+
+            objectItem.SubItems.Add("")
+            objectItem.SubItems.Item(9).Name = "objItemMass"
+
+            objectItem.SubItems.Add("")
+            objectItem.SubItems.Item(10).Name = "objItemSize"
+
+            objectItem.Group = objectListView.Groups.Item(group)
+
+            obj.ListItem = objectItem 'Update item in the object only once.
+            objectListView.Items.Add(objectItem)  'Insert item in the list.
 
         End If
     End Sub
-    Private Delegate Sub UpdateObjStatsDelegate(ByVal star As Star, ByRef index As Integer)
-    Private Sub UpdateObjStats(ByVal obj As StellarObject, ByRef index As Integer)
-
-        If objectLabelList.Count <= 0 Then
-            Exit Sub
-        End If
+    Private Delegate Sub UpdateListItemDelegate(ByVal star As Star, ByVal listItem As ListViewItem)
+    Private Sub UpdateListItem(ByVal obj As StellarObject, ByVal objectItem As ListViewItem)
 
         If selectedObject IsNot Nothing Then
-            UpdateTxtInfo(selectedObject) 'Update info for selected object.
+            UpdateSelectedTxtInfo(selectedObject) 'Update info for selected object.
         Else
             If hover Then
-                UpdateTxtInfo(hoverObject)
-            Else 'Show nothing.
-                hoverObject = Nothing 'Empty object.
-                UpdateTxtInfo(hoverObject) 'Clear fields.
-            End If
-        End If
-
-        'Move all planet labels one step down if flag is raised.
-        If moveLabels Then
-            Dim list = objectLabelList.FindAll(Function(l) l.Text.Contains("Planet"))
-            For Each item In list
-                item.Top = item.Top + labelSpace
-            Next
-            moveLabels = False
-        End If
-
-        If Not obj.IsMerged And index < objectLabelList.Count Then
-
-            'Get object labels.
-            Dim objectLocation As Label = objectLabelList(index)
-
-            If objectLocation.InvokeRequired Then
-                Try
-                    objectLocation.Invoke(New UpdateObjStatsDelegate(AddressOf UpdateObjStats), New Object() {obj, index})
-                Catch ex As Exception
-                    End
-                End Try
+                UpdateSelectedTxtInfo(hoverObject)
             Else
-                'Create some helpful strings. Round points to two (2) decimals.
-                Dim objLocX As String = Math.Round(obj.CenterOfMass.X, 2).ToString
-                Dim objLocY As String = Math.Round(obj.CenterOfMass.Y, 2).ToString
-                Dim objType As String = ""
-                If obj.isStar Then objType = "Star" Else objType = "Planet" 'Get type of object.
-
-                'Set new colors if star label color changed.
-                If objectLocation.ForeColor <> obj.Label.ForeColor Then
-                    objectLocation.ForeColor = obj.Label.ForeColor
-                End If
-
-                'Update location.
-                '-------------------------------------------------------------------------------------------------------------
-                Dim typeIndex As Integer = index + 1
-                If objType.Equals("Planet") Then 'Give different indexes for planets. Star 1 - Planet 1 / instead of / Star 1 - Planet 2
-                    typeIndex -= myUniverse.Stars.Where(Function(s) s.IsMerged = False).Count
-                End If
-                objectLocation.Text = objType + " " + typeIndex.ToString + ":   " + objLocX.ToString + ";  " + objLocY.ToString 'X location.
-                '-------------------------------------------------------------------------------------------------------------
-
+                hoverObject = Nothing 'Empty object.
+                UpdateSelectedTxtInfo(hoverObject) 'Clear fields.
             End If
-        ElseIf Not obj.IsLabelHidden() Then
+        End If
 
-            'Move all labels below the hidden label one step up.
-            For Each label In objectLabelList.GetRange(index + 1, objectLabelList.Count - index - 1)
-                label.Location = New Point(label.Location.X, label.Location.Y - labelSpace)
-            Next
+        If objectItem IsNot Nothing Then
 
-            obj.IsLabelHidden = True 'Set hidden label flag.
-            obj.Label = Nothing 'Clear label of object. With this, we now know that the object has no labels.
+            'Convert statistics to strings.
+            Dim objLocX As String = Math.Round(obj.CenterOfMass.X, 5).ToString
+            Dim objLocY As String = Math.Round(obj.CenterOfMass.Y, 5).ToString
+            Dim objAccX As String = obj.AccX.ToString
+            Dim objAccY As String = obj.AccY.ToString
+            Dim objVelX As String = obj.VelX.ToString
+            Dim objVelY As String = obj.VelY.ToString
+            Dim objSize As String
 
-            'Dispose labels.
-            objectLabelList(index).Parent = Nothing
-            objectLabelList(index).Dispose()
+            If obj.isStar Then
+                objSize = obj.Radius.ToString
+            ElseIf obj.isPlanet Then
+                objSize = obj.Size.ToString
+            Else
+                objSize = obj.Radius.ToString
+            End If
 
-            'Remove hidden label.
-            objectLabelList.RemoveAt(index)
+            'Set new colors if star label color changed.
+            If objectItem.ForeColor <> obj.ListItem.ForeColor Then
+                objectItem.ForeColor = obj.ListItem.ForeColor
+            End If
 
-            'Adjust index.
-            index = index - 1
+            'Update stats.
+            '-------------------------------------------------------------------------------------------------------------
+            If objectItem.SubItems.Item("objItemLocX").Text <> objLocX Then
+                objectItem.SubItems.Item("objItemLocX").Text = objLocX
+            End If
+            If objectItem.SubItems.Item("objItemLocY").Text = objLocY <> objLocY Then
+                objectItem.SubItems.Item("objItemLocY").Text = objLocY
+            End If
+
+            If objectItem.SubItems.Item("objItemAcc").Text <> (obj.AccX + obj.AccY).ToString Then
+                objectItem.SubItems.Item("objItemAcc").Text = obj.AccX + obj.AccY
+            End If
+            If objectItem.SubItems.Item("objItemAccX").Text <> objAccX Then
+                objectItem.SubItems.Item("objItemAccX").Text = objAccX
+            End If
+            If objectItem.SubItems.Item("objItemAccY").Text <> objAccY Then
+                objectItem.SubItems.Item("objItemAccY").Text = objAccY
+            End If
+
+            If objectItem.SubItems.Item("objItemVel").Text <> (obj.VelX + obj.VelY).ToString Then
+                objectItem.SubItems.Item("objItemVel").Text = obj.VelX + obj.VelY
+            End If
+            If objectItem.SubItems.Item("objItemVelX").Text <> objVelX Then
+                objectItem.SubItems.Item("objItemVelX").Text = objVelX
+            End If
+            If objectItem.SubItems.Item("objItemVelY").Text <> objVelY Then
+                objectItem.SubItems.Item("objItemVelY").Text = objVelY
+            End If
+
+            If objectItem.SubItems.Item("objItemMass").Text <> obj.Mass.ToString Then
+                objectItem.SubItems.Item("objItemMass").Text = obj.Mass.ToString
+            End If
+            If objectItem.SubItems.Item("objItemSize").Text <> objSize Then
+                objectItem.SubItems.Item("objItemSize").Text = objSize
+            End If
+            '-------------------------------------------------------------------------------------------------------------
+
         End If
 
     End Sub
@@ -1212,11 +1255,6 @@ Public Class blockForm
             absoluteMousePoint = mousePoint 'Save absolute point before scaling it.
 
 
-            Dim points() As PointF = {mousePoint}
-            myInverseUniverseMatrix.TransformPoints(points)
-
-            mousePoint = points(0)
-
             'Check always with absolute point.
             'If mouse out of boundaries, do nothing.
             If absoluteMousePoint.X >= imageWidth Or absoluteMousePoint.Y >= imageHeight Or
@@ -1226,7 +1264,16 @@ Public Class blockForm
                 lblCoordsAbs.Text = "Out Of Bounds"
                 Exit Sub
             Else
-                'Debug.
+                Dim points() As PointF = {mousePoint}
+
+                Try
+                    myInverseUniverseMatrix.TransformPoints(points)
+                Catch ex As Exception
+                    Console.WriteLine(ex.ToString)
+                End Try
+
+                mousePoint = points(0)
+
                 lblCoordsMouse.Text = mousePoint.ToString
                 lblCoordsAbs.Text = absoluteMousePoint.ToString
             End If
@@ -1245,7 +1292,7 @@ Public Class blockForm
             Exit Sub
         End If
 
-        If creationMode.Equals("p") And Not hover Then
+        If creationMode.Equals("p") And Not hover And counter < 10 Then
 
             Dim planetHalfSize As Double = planetSize / 2
 
@@ -1255,15 +1302,16 @@ Public Class blockForm
                 mousePoint.X - planetHalfSize - planetBorderWidth < clipOffsetX - 1 Or
                 mousePoint.Y - planetHalfSize - planetBorderWidth < clipOffsetY - 1 Then 'left_top_boundary(0).Y
 
+
                 Exit Sub
 
             End If
 
             threadList.Add(New Thread(AddressOf createplanet)) 'Each planet is handled by a different thread.
-            threadList.Last.Start(New PointFD() {New PointFD(mousePoint.X, mousePoint.Y), New PointFD(numPlanetParamXVel.Value, numPlanetParamYVel.Value),
+            threadList.Last.Start(New PointFD() {New PointFD(mousePoint.X, mousePoint.Y), New PointFD(numParamXVel.Value, numParamYVel.Value),
                                   New PointFD(absoluteMousePoint.X, absoluteMousePoint.Y)}) 'Start thread.
 
-        ElseIf creationMode.Equals("s") And Not hover Then
+        ElseIf creationMode.Equals("s") And Not hover And counter < 10 Then
 
             'If star size exceeds boundaries.
             If mousePoint.X + starRadius + planetBorderWidth > myUniverse.getWidth Or
@@ -1276,12 +1324,14 @@ Public Class blockForm
             End If
 
             threadList.Add(New Thread(AddressOf createstar)) 'Each star is handled by a different thread.
-            threadList.Last.Start(New PointFD() {New PointFD(mousePoint.X, mousePoint.Y), New PointFD(numStarParamXVel.Value, numStarParamYVel.Value),
+            threadList.Last.Start(New PointFD() {New PointFD(mousePoint.X, mousePoint.Y), New PointFD(numParamXVel.Value, numParamYVel.Value),
                                   New PointFD(absoluteMousePoint.X, absoluteMousePoint.Y)}) 'Start thread.
 
         Else
             ObjectSelected() 'We selected an object.
         End If
+
+        Me.Focus()
 
     End Sub
     Private Sub blockForm_MouseWheel(sender As Object, e As MouseEventArgs) Handles Me.MouseWheel
@@ -1312,11 +1362,17 @@ Public Class blockForm
                 zoomValue = Math.Round(zoomValue, 5) 'Round value in case of trailing 0-9.
                 zoomUniverse(1)
 
+                Dim s As New MouseEventArgs(MouseButtons.None, 0, 0, 0, 0) 'Init empty mouse event.
+                Me.OnMouseMove(s) 'Update UI points.
+
             ElseIf e.Delta = -120 And zoomValue > -10 Then
 
                 zoomValue -= zoomStep 'Decrement by one step. Zoom OUT.
                 zoomValue = Math.Round(zoomValue, 5) 'Round value in case of trailing 0-9.
                 zoomUniverse(0)
+
+                Dim s As New MouseEventArgs(MouseButtons.None, 0, 0, 0, 0) 'Init empty mouse event.
+                Me.OnMouseMove(s) 'Update UI points.
 
             End If
         Catch ex As Exception
@@ -1329,6 +1385,7 @@ Public Class blockForm
     Private Sub blockForm_MouseDown(sender As Object, e As MouseEventArgs) Handles Me.MouseDown
 
         oldOffset = New PointF(clipOffsetX, clipOffsetY)
+        counter = 0
         mouseIsDown = True
         dragStart = True
         dragPoint = absoluteMousePoint 'Save point where dragging begun.
@@ -1344,7 +1401,7 @@ Public Class blockForm
             UniversePausedForDragging = False
         End If
 
-        myUniverse.SetDragStatus(dragStart)
+        myUniverse.isDragged = dragStart
         counter = 0 'Reset counter.
 
     End Sub
@@ -1376,7 +1433,7 @@ Public Class blockForm
     End Sub
     Private Sub CheckDragging()
 
-        If Not ctrlKeyDown And mouseIsDown And dragStart And dragPoint <> absoluteMousePoint And counter > 5 And Not onFrame Then
+        If Not ctrlKeyDown And mouseIsDown And dragStart And dragPoint <> absoluteMousePoint And counter > 5 And Not onFrame And Not followingObject Then
 
             dragging = True
 
@@ -1386,11 +1443,15 @@ Public Class blockForm
             End If
 
             counter = 5 'The maximum speed we can draw objects. Lower means slower.
-            myUniverse.SetDragStatus(dragStart)
+            myUniverse.isDragged = dragStart
 
             'Move universe.
             Try
                 moveUniverse(dragPoint, absoluteMousePoint)
+
+                Dim s As New MouseEventArgs(MouseButtons.None, 0, 0, 0, 0) 'Init empty mouse event.
+                Me.OnMouseMove(s) 'Update UI points.
+
             Catch ex As Exception
                 Console.WriteLine(ex.ToString)
             End Try
@@ -1450,16 +1511,16 @@ Public Class blockForm
 
             'Update text fields with info of hovering object.
             If hover Then
-                UpdateTxtInfo(hoverObject)
+                UpdateSelectedTxtInfo(hoverObject)
             Else 'Show nothing.
                 hoverObject = Nothing 'Empty object.
-                UpdateTxtInfo(hoverObject) 'Clear fields.
+                UpdateSelectedTxtInfo(hoverObject) 'Clear fields.
             End If
 
         ElseIf selectedObject.IsMerged Then
 
             selectedObject = Nothing 'Empty object.
-            UpdateTxtInfo(selectedObject) 'Clear fields.
+            UpdateSelectedTxtInfo(selectedObject) 'Clear fields.
 
         End If
 
@@ -1467,14 +1528,14 @@ Public Class blockForm
     Private Sub ObjectSelected()
 
         'If clicked on nothing, clear selection.
-        If Not hover Then
+        If Not hover And counter < 10 Then
 
             If selectedObject IsNot Nothing Then
                 selectedObject.IsSelected = False
                 selectedObject = Nothing
             End If
 
-        Else
+        ElseIf counter < 10 Then
 
             If selectedObject IsNot Nothing Then
 
@@ -1496,43 +1557,43 @@ Public Class blockForm
         End If
 
     End Sub
-    Private Delegate Sub UpdateTxtInfoDelegate(ByVal obj As StellarObject)
-    Private Sub UpdateTxtInfo(ByVal obj As StellarObject)
+    Private Delegate Sub UpdateSelectedTxtInfoDelegate(ByVal obj As StellarObject)
+    Private Sub UpdateSelectedTxtInfo(ByVal obj As StellarObject)
 
         If boxObjectInfo.InvokeRequired Then
             Try
-                boxObjectInfo.Invoke(New UpdateTxtInfoDelegate(AddressOf UpdateTxtInfo), New Object() {obj})
+                boxObjectInfo.Invoke(New UpdateSelectedTxtInfoDelegate(AddressOf UpdateSelectedTxtInfo), New Object() {obj})
             Catch ex As Exception
                 Console.WriteLine(ex.ToString)
             End Try
         Else
             If obj IsNot Nothing Then
 
-                'Round points to two (2) decimals.
-                Dim objLocX As String = Math.Round(obj.CenterOfMass.X, 2).ToString
-                Dim objLocY As String = Math.Round(obj.CenterOfMass.Y, 2).ToString
+                Dim objLocX As String = obj.CenterOfMass.X.ToString
+                Dim objLocY As String = obj.CenterOfMass.Y.ToString
                 Dim objAccX As String = obj.AccX.ToString
                 Dim objAccY As String = obj.AccY.ToString
                 Dim objVelX As String = obj.VelX.ToString
                 Dim objVelY As String = obj.VelY.ToString
 
-                txtInfoLoc.Text = objLocX + " - " + objLocY
-                txtInfoMass.Text = obj.Mass.ToString
+                'txtInfoLocX.Text = objLocX
+                'txtInfoLocY.Text = objLocY
 
-                If obj.isStar Then
-                    txtInfoSize.Text = obj.Radius.ToString
-                Else
-                    txtInfoSize.Text = obj.Size.ToString
-                End If
+                'txtInfoAccX.Text = objAccX
+                'txtInfoAccY.Text = objAccY
+                'txtInfoVelX.Text = objVelX
+                'txtInfoVelY.Text = objVelY
 
-                txtInfoAcc.Text = objAccX + " - " + objAccY
-                txtInfoVel.Text = objVelX + " - " + objVelY
+                'txtInfoMass.Text = obj.Mass.ToString
+
+                'If obj.isStar Then
+                '    txtInfoSize.Text = obj.Radius.ToString
+                'Else
+                '    txtInfoSize.Text = obj.Size.ToString
+                'End If
+
             Else
-                txtInfoLoc.Clear()
-                txtInfoMass.Clear()
-                txtInfoSize.Clear()
-                txtInfoAcc.Clear()
-                txtInfoVel.Clear()
+
             End If
         End If
 
@@ -1544,67 +1605,78 @@ Public Class blockForm
     '----------------------------------------------------------------------------------------------------------------------
     '----------------------------------------------------------------------------------------------------------------------
 
-    Private Sub planetMode_CheckedChanged(sender As Object, e As EventArgs) Handles modePlanet.CheckedChanged
+    Private Sub radModePlanet_CheckedChanged(sender As Object, e As EventArgs) Handles radModePlanet.CheckedChanged
 
-        If modePlanet.Checked Then
+        If radModePlanet.Checked Then
             creationMode = "p"
-            boxPlanetParam.Visible = True
-            boxPlanetParam.BringToFront()
-        Else
-            boxPlanetParam.Visible = False
         End If
 
     End Sub
-    Private Sub starMode_CheckedChanged(sender As Object, e As EventArgs) Handles modeStar.CheckedChanged
+    Private Sub radModeStar_CheckedChanged(sender As Object, e As EventArgs) Handles radModeStar.CheckedChanged
 
-        If modeStar.Checked Then
+        If radModeStar.Checked Then
             creationMode = "s"
-            boxStarParam.Visible = True
-            boxStarParam.BringToFront()
-        Else
-            boxStarParam.Visible = False
         End If
 
     End Sub
-    Private Sub modeNothing_CheckedChanged(sender As Object, e As EventArgs) Handles modeNothing.CheckedChanged
+    Private Sub radModeNothing_CheckedChanged(sender As Object, e As EventArgs) Handles radModeNothing.CheckedChanged
 
-        If modeNothing.Checked Then
-
-            If creationMode.Equals("s") Then
-                boxStarParam.Enabled = False
-                boxStarParam.Visible = True
-            Else
-                boxPlanetParam.Enabled = False
-                boxPlanetParam.Visible = True
-            End If
+        If radModeNothing.Checked Then
             creationMode = ""
-        Else
-            boxStarParam.Enabled = True
-            boxPlanetParam.Enabled = True
         End If
 
     End Sub
-    Private Sub showTraj_CheckedChanged(sender As Object, e As EventArgs) Handles generalTraj.CheckedChanged
 
-        myUniverse.SetTrajStatus(generalTraj.Checked)
+    Private Sub radCollisionBounce_CheckedChanged(sender As Object, e As EventArgs) Handles radCollisionBounce.CheckedChanged
+        myUniverse.Bounce = radCollisionBounce.Checked
+    End Sub
 
-        If Not generalTraj.Checked Then
-            numTraj.Visible = False
+    Private Sub radRelativeTraj_CheckedChanged(sender As Object, e As EventArgs) Handles radRelativeTraj.CheckedChanged
+
+        relativeTrajectories = radRelativeTraj.Checked
+        myUniverse.RelativeTraj = relativeTrajectories
+
+    End Sub
+    Private Sub radBothTraj_CheckedChanged(sender As Object, e As EventArgs) Handles radBothTraj.CheckedChanged
+
+        myUniverse.drawBothTraj = radBothTraj.Checked
+        relativeTrajectories = radBothTraj.Checked
+        myUniverse.RelativeTraj = relativeTrajectories
+
+    End Sub
+
+    Private Sub chkFollowSelected_CheckedChanged(sender As Object, e As EventArgs) Handles chkFollowSelected.CheckedChanged
+
+        followingObject = chkFollowSelected.Checked
+        radRelativeTraj.Enabled = followingObject
+        radBothTraj.Enabled = followingObject
+
+        If followingObject = False Then
+            radRealTraj.Checked = True
+        End If
+
+        followObject(followingObject)
+
+    End Sub
+
+    Private Sub numTimeTick_ValueChanged(sender As Object, e As EventArgs) Handles numTimeTick.ValueChanged
+
+        tickValue = numTimeTick.Value
+
+    End Sub
+
+    Private Sub chkDrawTrajectories_CheckedChanged(sender As Object, e As EventArgs) Handles chkDrawTrajectories.CheckedChanged
+
+        myUniverse.DrawTraj = chkDrawTrajectories.Checked
+        numTraj.Visible = chkDrawTrajectories.Checked
+
+        If Not chkDrawTrajectories.Checked Then
             myUniverse.Planets.ForEach(Sub(p) p.ClearTrajectory())
-        Else
-            numTraj.Visible = True
         End If
 
     End Sub
-    Private Sub pointNumber_ValueChanged(sender As Object, e As EventArgs) Handles numTraj.ValueChanged
-
-        myUniverse.SetTrajMaxPoints(numTraj.Value)
-
-    End Sub
-    Private Sub bounceMode_CheckedChanged(sender As Object, e As EventArgs) Handles collisionBounce.CheckedChanged
-
-        myUniverse.SetBounceStatus(collisionBounce.Checked)
-
+    Private Sub numTraj_ValueChanged(sender As Object, e As EventArgs) Handles numTraj.ValueChanged
+        myUniverse.MaxTrajectoryPoints = numTraj.Value
     End Sub
 
     '----------------------------------------------------------------------------------------------------------------------
@@ -1622,8 +1694,8 @@ Public Class blockForm
 
         'Add and initialize new star to universe.
         myUniverse.AddStar(New Star)
-        myUniverse.Stars.Last.Init(myUniverse, defaultUniverseMatrix, pos, starRadius, starBorderWidth, myBrush.Color, starType, 0, -5)
-        AddObjStatsLabel(myUniverse.Stars.Last)
+        myUniverse.Stars.Last.Init(myUniverse, defaultUniverseMatrix, pos, starRadius, starBorderWidth, myBrush.Color, starType, New PointFD(0, -5))
+        AddListItem(myUniverse.Stars.Last, myUniverse.Objects)
         'Set new random color.
         myBrush = New SolidBrush(Color.FromArgb(rand.Next(0, 255), rand.Next(0, 255), rand.Next(0, 255)))
 
@@ -1636,8 +1708,8 @@ Public Class blockForm
 
         'Add and initialize new star to universe.
         myUniverse.AddStar(New Star)
-        myUniverse.Stars.Last.Init(myUniverse, defaultUniverseMatrix, pos3, starRadius, starBorderWidth, myBrush.Color, starType, 0, 5)
-        AddObjStatsLabel(myUniverse.Stars.Last)
+        myUniverse.Stars.Last.Init(myUniverse, defaultUniverseMatrix, pos3, starRadius, starBorderWidth, myBrush.Color, starType, New PointFD(0, -5))
+        AddListItem(myUniverse.Stars.Last, myUniverse.Objects)
 
         'Set new random color.
         'myBrush = New SolidBrush(Color.FromArgb(rand.Next(0, 255), rand.Next(0, 255), rand.Next(0, 255)))
@@ -1656,6 +1728,34 @@ Public Class blockForm
         'End While
 
     End Sub
+    Private Sub followObject(ByVal checked As Boolean)
+
+        If followingObject And selectedObject IsNot Nothing Then
+
+            Dim objCenter As New PointF(selectedObject.CenterOfMass.X, selectedObject.CenterOfMass.Y)
+            Dim universeDefaultCenter As New PointF((defaultUniverseWidth + defaultClipOffset) / 2 - 1, (defaultUniverseHeight + defaultClipOffset) / 2 - 1)
+
+            'Transforming the point to the original center seems to be the best choice.
+            Dim points() As PointF = {objCenter}
+            myUniverseMatrix.TransformPoints(points)
+            objCenter = points(0)
+
+            'If object has not moved, don't waste resources.
+            'This also prevents from infinitely moving because of rounding errors.
+            If Math.Abs(objCenter.X - universeDefaultCenter.X) < 0.4 And Math.Abs(objCenter.Y - universeDefaultCenter.Y) < 0.4 Then
+                Exit Sub
+            End If
+
+            'Center around object and follow it.
+            moveUniverse(objCenter, universeDefaultCenter)
+
+            'Update oldOffset point to signal the program this is not a normal drag and to accept clicks.
+            oldOffset = New PointF(clipOffsetX, clipOffsetY)
+
+        End If
+
+    End Sub
+
     Private Sub zoomUniverse(ByVal zoomIn As Boolean)
 
         If formLoaded And Not onFrame Then
@@ -1709,10 +1809,10 @@ Public Class blockForm
             universeHeight = points(0).Y
 
             'Give the signal to the universe to update its objects. (new clipOffset locations etc.)
-            myUniverse.ResizeUniverse(universeGraphics.ClipBounds.Location, points(0), myUniverseMatrix)
+            resetOffset = True
 
-            Dim s As New MouseEventArgs(MouseButtons.None, 0, 0, 0, 0) 'Init empty mouse event.
-            Me.OnMouseMove(s) 'Update UI points.
+            'Give the signal to the universe to update its objects. (new clipOffset locations etc.)
+            myUniverse.ResizeUniverse(universeGraphics.ClipBounds.Location, points(0), myUniverseMatrix)
 
         End If
 
@@ -1732,8 +1832,14 @@ Public Class blockForm
             'Access graphics object only once to avoid "object in use" exceptions.
             Dim universeGraphics As Graphics = myUniverse.getGraphics
 
-            'Apply transformation to graphics.
-            universeGraphics.Transform = newMatrix.Clone
+            Try
+                'Apply transformation to graphics.
+                universeGraphics.Transform = newMatrix.Clone
+
+            Catch ex As Exception
+                Console.WriteLine(ex.ToString)
+            End Try
+
 
             'Update local vars.
             myUniverseMatrix = newMatrix.Clone
@@ -1753,25 +1859,10 @@ Public Class blockForm
             universeHeight = points(0).Y
 
             'Give the signal to the universe to update its objects. (new clipOffset locations etc.)
+            resetOffset = True
+
             myUniverse.ResizeUniverse(New PointF(clipOffsetX, clipOffsetY), New PointF(universeWidth, universeHeight), myUniverseMatrix)
 
-            Dim s As New MouseEventArgs(MouseButtons.None, 0, 0, 0, 0) 'Init empty mouse event.
-            Me.OnMouseMove(s) 'Update UI points.
-
-        End If
-
-    End Sub
-
-    Private Sub btnPauseUniverse_Click(sender As Object, e As EventArgs) Handles btnPauseUniverse.Click
-
-        If UniversePaused Then
-            btnPauseUniverse.Text = "Pause"
-            lblStatusMessage.Text = ""
-            UniversePaused = False
-        Else
-            btnPauseUniverse.Text = "Resume"
-            lblStatusMessage.Text = "Paused"
-            UniversePaused = True
         End If
 
     End Sub

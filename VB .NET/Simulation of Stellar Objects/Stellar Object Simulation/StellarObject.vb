@@ -43,16 +43,14 @@ Public Class StellarObject
     Protected objectDuplicatePointBottom As PointF
 
     'Misc. properties.
-    Protected objectLabel As Label 'Dummy label to store label properties (forecolor, font etc.)
-    Protected objectLabelHidden As Boolean 'Is label hidden?
+    Protected objectListItem As ListViewItem 'Dummy item to store label properties (forecolor, font etc.)
 
     Protected objectMerging As Boolean 'Is the object currently merging?
     Protected objectSelected As Boolean 'Is object selected?
 
     Protected objectTrajectoryPoints As New List(Of PointF)
-    Protected objectLastTrajectoryPointIndex As Integer
     Protected objectMaxTrajectoryPoints As Integer
-    Protected objectTrajectoryTransformed As Boolean
+    Protected objectTrajRelativeDist As New List(Of PointF)
 
     Public Property Universe() As Universe
         Get
@@ -237,20 +235,12 @@ Public Class StellarObject
         End Set
     End Property
 
-    Public Property Label() As Label
+    Public Property ListItem() As ListViewItem
         Get
-            Return objectLabel
+            Return objectListItem
         End Get
-        Set(ByVal Label As Label)
-            objectLabel = Label
-        End Set
-    End Property
-    Public Property IsLabelHidden() As Boolean
-        Get
-            Return objectLabelHidden
-        End Get
-        Set(ByVal Status As Boolean)
-            objectLabelHidden = Status
+        Set(ByVal Item As ListViewItem)
+            objectListItem = Item
         End Set
     End Property
 
@@ -277,14 +267,6 @@ Public Class StellarObject
         End Get
         Set(value As List(Of PointF))
             objectTrajectoryPoints = value
-        End Set
-    End Property
-    Public Property trajectoryTransformed() As Boolean
-        Get
-            Return objectTrajectoryTransformed
-        End Get
-        Set(value As Boolean)
-            objectTrajectoryTransformed = value
         End Set
     End Property
 
@@ -393,6 +375,8 @@ Public Class StellarObject
                     Dim newcolor As Color = Color.FromArgb(objectColor.R / 2 + obj.Color.R / 2,
                                                                 objectColor.G / 2 + obj.Color.G / 2,
                                                                 objectColor.B / 2 + obj.Color.B / 2)
+
+                    'I'm the eater.
                     If objectRadius >= obj.Radius Then
 
                         obj.IsMerged = True
@@ -401,7 +385,7 @@ Public Class StellarObject
 
                         'Initialize new merged Star.
                         CType(Me, Star).Init(objectUniverse, objectUniverseMatrix, CenterOfMass, newStarRadius, objectBorderWidth, newcolor, newobjectType,
-                             newVelX, newVelY)
+                             New PointFD(newVelX, newVelY))
 
                         'Selected merged object, if the smaller one was selected.
                         If obj.IsSelected Then
@@ -409,16 +393,15 @@ Public Class StellarObject
                         End If
 
                         objectMass = newStarMass
-                        objectLabel.ForeColor = newcolor
 
-                    Else
+                    Else 'I'm being eaten.
                         IsMerged = True
 
                         newStarRadius = obj.Radius + objectRadius / 4 'New radius is the radius of eater + a 4th the radius of the eaten object.
 
                         'Initialize new merged Star.
                         CType(obj, Star).Init(objectUniverse, objectUniverseMatrix, obj.CenterOfMass, newStarRadius, objectBorderWidth, newcolor, newobjectType,
-                                  newVelX, newVelY)
+                                  New PointFD(newVelX, newVelY))
 
                         'Selected merged object, if the smaller one was selected.
                         If objectSelected Then
@@ -426,13 +409,13 @@ Public Class StellarObject
                         End If
 
                         obj.Mass = newStarMass
-                        obj.Label.ForeColor = newcolor
 
                     End If
 
                     obj.IsMerging = False
                     IsMerging = False
 
+                    delta = 1 / 100 'Reset catalyst.
                     Continue For
 
                 End If
@@ -517,9 +500,141 @@ Public Class StellarObject
         objectTrajectoryPoints.RemoveRange(0, objectTrajectoryPoints.Count)
 
     End Sub
+    Friend Sub ClearRelativeDistances()
+
+        objectTrajRelativeDist.RemoveRange(0, objectTrajRelativeDist.Count)
+
+    End Sub
 
     Friend Overridable Sub Paint(ByVal universeGraphics As Graphics, ByVal zoomValue As Double)
 
     End Sub
+
+    Friend Sub DrawTrajectory(ByVal universeGraphics As Graphics, ByVal planetPen As Pen)
+
+        Dim maxPoints As Integer = objectUniverse.MaxTrajectoryPoints 'Get maximum number of points to use for the trajectory.
+        Dim addRelativeDist As Boolean = False
+
+        'If new value is given, reset list.
+        If maxPoints <> objectMaxTrajectoryPoints And objectTrajectoryPoints.Count > 0 Then
+
+            ClearTrajectory()
+            ClearRelativeDistances()
+            objectMaxTrajectoryPoints = maxPoints
+
+        End If
+
+        'Draw trajectory if said so.
+        If objectUniverse.drawTraj Then
+
+            Try
+                Dim singlePoint As New PointF(objectCenterOfMass.X, objectCenterOfMass.Y)
+
+                If objectUniverse.RelativeTraj And objectTrajectoryPoints.Count > 0 And objectTrajRelativeDist.Count = 0 Then
+                    ClearTrajectory()
+                ElseIf Not objectUniverse.RelativeTraj And objectTrajRelativeDist.Count > 0 Then
+                    ClearTrajectory()
+                    ClearRelativeDistances()
+                End If
+
+                'If there are any trajectory points.
+                If objectTrajectoryPoints.Count > 0 Then
+
+                    Dim lastPoint As PointF = objectTrajectoryPoints.Last
+
+                    'Don't change trajectory when dragging.
+                    If Not objectUniverse.isDragged Then
+
+                        'If center of mass is not the same, create new trajectory point.
+                        If Not singlePoint.Equals(objectTrajectoryPoints.Last) Then
+
+                            addRelativeDist = True
+
+                            'Recycle points.
+                            If objectTrajectoryPoints.Count = maxPoints Then
+
+                                objectTrajectoryPoints.RemoveAt(0)
+
+                                If objectUniverse.RelativeTraj And objectTrajRelativeDist.Count > 0 Then
+                                    objectTrajRelativeDist.RemoveAt(0)
+                                End If
+
+                            End If
+
+                            objectTrajectoryPoints.Add(singlePoint)
+
+                            'Check for violent changes in trajectory, usually because of tunneling.
+                            'In that case, reset all points and start from scratch.
+                            If Math.Abs(objectCenterOfMass.X - lastPoint.X) > 100 Or Math.Abs(objectCenterOfMass.Y - lastPoint.Y) > 100 Then
+
+                                ClearTrajectory()
+                                objectTrajectoryPoints.Add(singlePoint) 'Add first point again.
+
+                            End If
+                        Else
+                            addRelativeDist = False 'Add relative distances only when we add trajectory points.
+                        End If
+
+                    End If
+
+                Else
+                    addRelativeDist = True
+                    objectTrajectoryPoints.Add(singlePoint) 'Add first point.
+                End If
+
+                'Create path.
+                Dim graphicsPath As New Drawing2D.GraphicsPath
+
+                'Calculate original distances from followed object.
+                If objectUniverse.RelativeTraj Or objectUniverse.drawBothTraj Then
+
+                    If addRelativeDist Then
+
+                        Dim distance As PointF
+
+                        'Get distance from selected/followed object.
+                        Dim selectedObject As StellarObject = objectUniverse.Objects.Find(Function(o) o.IsSelected)
+                        distance = New PointF(singlePoint.X - selectedObject.CenterOfMass.X, singlePoint.Y - selectedObject.CenterOfMass.Y)
+
+                        objectTrajRelativeDist.Add(distance)
+
+                        Dim i As Integer
+                        Dim realTrajectory() As PointF = objectTrajectoryPoints.ToArray
+
+                        'Change point to match original point.
+                        'NOTE: For Each loops don't change the elements in the group as they are getting local copies of the objects.
+                        For i = 0 To realTrajectory.Count - 1
+                            realTrajectory(i) = New PointF(selectedObject.CenterOfMass.X + objectTrajRelativeDist(i).X, selectedObject.CenterOfMass.Y + objectTrajRelativeDist(i).Y)
+                        Next
+
+                        graphicsPath.AddLines(realTrajectory.ToArray)
+                    End If
+
+                    'Draw original trajectory also, if both are set to be drawn.
+                    If objectUniverse.drawBothTraj Then
+
+                        Dim secGraphicsPath As New GraphicsPath
+                        secGraphicsPath.AddLines(objectTrajectoryPoints.ToArray)
+
+                        'Draw trajectory.
+                        universeGraphics.DrawPath(planetPen, secGraphicsPath)
+
+                    End If
+
+                Else
+                    graphicsPath.AddLines(objectTrajectoryPoints.ToArray)
+                End If
+
+                'Draw trajectory.
+                universeGraphics.DrawPath(planetPen, graphicsPath)
+
+            Catch ex As Exception
+                Console.WriteLine(ex.ToString)
+            End Try
+
+        End If
+
+    End Sub
+
 
 End Class

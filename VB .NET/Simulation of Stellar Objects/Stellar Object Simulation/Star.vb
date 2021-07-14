@@ -40,7 +40,7 @@ Public Class Star
     Friend Sub Init(ByVal sUniverse As Universe, ByVal pUniverseMatrix As Drawing2D.Matrix,
                     ByVal sLocation As PointFD, ByVal sRadius As Double,
                     ByVal sBorderWidth As Integer, ByVal sColor As Color, ByVal sType As Integer,
-                    Optional ByVal sVelX As Double = 0, Optional ByVal sVelY As Double = 0)
+                    Optional ByVal sVel As PointFD = Nothing)
 
         objectUniverse = sUniverse 'Set universe the object is in.
         objectUniverseMatrix = pUniverseMatrix 'Set object's universe matrix.
@@ -71,26 +71,30 @@ Public Class Star
         objectDuplicatePointTop = New PointF(0, 0)
         objectDuplicatePointBottom = New PointF(0, 0)
 
-        objectLabel = New Label 'Init object label.
-        objectLabel.ForeColor = objectColor 'Set label color.
-        objectLabelHidden = False 'Init state of object label.
-
         'Initiliaze velocities and accelerations.
         'Here we can give extra boosts to our created objects.
         'Don't forget to account for the distance multiplier ONLY when creating new objects.
         If IsMerging Then
-            objectVelX = sVelX 'Init X Velocity.
-            objectVelY = sVelY 'Init Y Velocity.
+
+            objectVelX = sVel.X
+            objectVelY = sVel.Y
+
         Else
-            objectVelX = sVelX / objectUniverse.getDistanceMultiplier 'Init X Velocity.
-            objectVelY = sVelY / objectUniverse.getDistanceMultiplier 'Init Y Velocity.
+
+            objectVelX = sVel.X / objectUniverse.getDistanceMultiplier
+            objectVelY = sVel.Y / objectUniverse.getDistanceMultiplier
+
             objectSelected = False 'Init selection flag.
+            objectListItem = New ListViewItem 'Init object label.
+
         End If
 
-        objectAccX = 0 'Init Acceleration X.
-        objectAccY = 0 'Init Acceleration Y.
-        objectMerged = False 'Init state of object.
+        objectListItem.ForeColor = objectColor 'Set label color.
 
+        objectAccX = 0
+        objectAccY = 0
+
+        objectMerged = False 'Init state of object.
         objectMerging = False 'Init merging status flag.
 
     End Sub
