@@ -10,9 +10,8 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
  * main.c
  *
  * Created: 8/7/2016 8:53:55 PM
- * Author : CosmaOne
+ * Author : Kosmas Georgiadis
 
-	A small greenhouse system with timed relays and internal clock.
  */
 
  #define F_CPU 8000000UL
