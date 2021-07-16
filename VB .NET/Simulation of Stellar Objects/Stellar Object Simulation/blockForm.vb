@@ -75,7 +75,6 @@ Public Class blockForm
 
     Dim dragPoint As New PointF
     Dim dragStart As Boolean = False
-    Dim oldOffset As New PointF(0, 0)
     Dim resetOffset As Boolean = False
 
     Dim ctrlKeyDown As Boolean = False
@@ -87,6 +86,8 @@ Public Class blockForm
     Dim relativeTrajectories As Boolean = False
     Dim hoverObject As StellarObject = Nothing
     Dim hover As Boolean = False
+    Dim hoverLabel As New Label
+    Dim hideHoverInfo As Boolean = False
 
     Dim formLoaded As Boolean = False
 
@@ -244,6 +245,8 @@ Public Class blockForm
         Try
             objList.AddRange(myUniverse.Objects)
 
+            'Check if we 're hovering above stellar object.
+            ObjectUnderMouse(objList)
 
             'If the offset is changed due to zooming/dragging, set the new offset for all stellar objects and check if they are still visible.
             If resetOffset Then
@@ -257,8 +260,21 @@ Public Class blockForm
 
                 obj.Paint(universeGraphics, zoomValue)
 
-                'Follow object, if said so.
-                followObject(followingObject)
+                If obj.IsSelected Then
+
+                    'Follow object, if said so.
+                    followObject(followingObject)
+
+                    'Hide label, if said show.
+                    If hideHoverInfo Then
+                        Me.Invoke(New hideHoverLabelDelegate(AddressOf hideHoverLabel))
+                    Else
+                        Me.Invoke(New showHoverLabelDelegate(AddressOf showHoverLabel), New Object() {obj})
+                    End If
+
+                ElseIf selectedObject Is Nothing And hoverObject IsNot Nothing Then
+                        Me.Invoke(New showHoverLabelDelegate(AddressOf showHoverLabel), New Object() {hoverObject})
+                End If
 
                 'Tunneling.
                 If obj.isStar And radCollisionTunnel.Checked And Not dragStart Then
@@ -288,7 +304,6 @@ Public Class blockForm
         paintingPlanets = False
 
     End Sub
-
     Private Sub Frame(ByVal universeGraphics As Graphics)
 
         While 1
@@ -969,8 +984,8 @@ Public Class blockForm
         'End While
 
         'If it's merged remove thread from list and terminate.
-        threadList.Remove(Thread.CurrentThread)
-        Thread.CurrentThread.Abort()
+        'threadList.Remove(Thread.CurrentThread)
+        'Thread.CurrentThread.
 
     End Sub
     Private Sub createplanet(ByVal data() As PointFD)
@@ -1003,8 +1018,8 @@ Public Class blockForm
         'End While
 
         'If it's merged remove thread from list and terminate.
-        threadList.Remove(Thread.CurrentThread)
-        Thread.CurrentThread.Abort()
+        'threadList.Remove(Thread.CurrentThread)
+        'Thread.CurrentThread.Abort()
 
     End Sub
 
@@ -1065,9 +1080,17 @@ Public Class blockForm
 
                 UpdateListItem(obj, item)
 
+                'This updates our local var to the new selected object, if the previous one merged.
+                If obj.IsSelected Then
+                    selectedObject = obj
+                End If
+
             Next
 
-            'Remove items for merged stars.
+            'Start in reverse order to keep the indexes intact.
+            removedListItems.Reverse()
+
+            'Remove merged items.
             For Each item In removedListItems
                 objectListView.Items.RemoveAt(item)
             Next
@@ -1165,17 +1188,6 @@ Public Class blockForm
     Private Delegate Sub UpdateListItemDelegate(ByVal star As Star, ByVal listItem As ListViewItem)
     Private Sub UpdateListItem(ByVal obj As StellarObject, ByVal objectItem As ListViewItem)
 
-        If selectedObject IsNot Nothing Then
-            UpdateSelectedTxtInfo(selectedObject) 'Update info for selected object.
-        Else
-            If hover Then
-                UpdateSelectedTxtInfo(hoverObject)
-            Else
-                hoverObject = Nothing 'Empty object.
-                UpdateSelectedTxtInfo(hoverObject) 'Clear fields.
-            End If
-        End If
-
         If objectItem IsNot Nothing Then
 
             'Convert statistics to strings.
@@ -1195,9 +1207,12 @@ Public Class blockForm
                 objSize = obj.Radius.ToString
             End If
 
-            'Set new colors if star label color changed.
-            If objectItem.ForeColor <> obj.ListItem.ForeColor Then
-                objectItem.ForeColor = obj.ListItem.ForeColor
+            Dim brightness As Single = obj.ListItem.ForeColor.GetBrightness
+
+            If brightness > 0.4 Then
+                objectItem.BackColor = Color.Black
+            Else
+                objectItem.BackColor = Color.White
             End If
 
             'Update stats.
@@ -1254,7 +1269,6 @@ Public Class blockForm
             mousePoint = PointToClient(MousePosition)
             absoluteMousePoint = mousePoint 'Save absolute point before scaling it.
 
-
             'Check always with absolute point.
             'If mouse out of boundaries, do nothing.
             If absoluteMousePoint.X >= imageWidth Or absoluteMousePoint.Y >= imageHeight Or
@@ -1288,11 +1302,11 @@ Public Class blockForm
     Private Sub blockForm_Click(sender As Object, e As EventArgs) Handles Me.Click
 
         'Do nothing until offset changes when dragging.
-        If oldOffset <> New PointF(clipOffsetX, clipOffsetY) And dragStart Then
+        If dragStart Then
             Exit Sub
         End If
 
-        If creationMode.Equals("p") And Not hover And counter < 10 Then
+        If creationMode.Equals("p") And Not hover Then
 
             Dim planetHalfSize As Double = planetSize / 2
 
@@ -1300,8 +1314,7 @@ Public Class blockForm
             If mousePoint.X + planetHalfSize + planetBorderWidth > myUniverse.getWidth Or
                 mousePoint.Y + planetHalfSize + planetBorderWidth > myUniverse.getHeight Or
                 mousePoint.X - planetHalfSize - planetBorderWidth < clipOffsetX - 1 Or
-                mousePoint.Y - planetHalfSize - planetBorderWidth < clipOffsetY - 1 Then 'left_top_boundary(0).Y
-
+                mousePoint.Y - planetHalfSize - planetBorderWidth < clipOffsetY - 1 Then
 
                 Exit Sub
 
@@ -1311,13 +1324,13 @@ Public Class blockForm
             threadList.Last.Start(New PointFD() {New PointFD(mousePoint.X, mousePoint.Y), New PointFD(numParamXVel.Value, numParamYVel.Value),
                                   New PointFD(absoluteMousePoint.X, absoluteMousePoint.Y)}) 'Start thread.
 
-        ElseIf creationMode.Equals("s") And Not hover And counter < 10 Then
+        ElseIf creationMode.Equals("s") And Not hover Then
 
             'If star size exceeds boundaries.
             If mousePoint.X + starRadius + planetBorderWidth > myUniverse.getWidth Or
                 mousePoint.Y + starRadius + planetBorderWidth > myUniverse.getHeight Or
                 mousePoint.X - starRadius - planetBorderWidth < clipOffsetX - 1 Or
-                mousePoint.Y - starRadius - planetBorderWidth < clipOffsetY - 1 Then 'left_top_boundary(0).Y
+                mousePoint.Y - starRadius - planetBorderWidth < clipOffsetY - 1 Then
 
                 Exit Sub
 
@@ -1331,7 +1344,7 @@ Public Class blockForm
             ObjectSelected() 'We selected an object.
         End If
 
-        Me.Focus()
+        dummyUniverse.Focus()
 
     End Sub
     Private Sub blockForm_MouseWheel(sender As Object, e As MouseEventArgs) Handles Me.MouseWheel
@@ -1384,10 +1397,8 @@ Public Class blockForm
     End Sub
     Private Sub blockForm_MouseDown(sender As Object, e As MouseEventArgs) Handles Me.MouseDown
 
-        oldOffset = New PointF(clipOffsetX, clipOffsetY)
         counter = 0
         mouseIsDown = True
-        dragStart = True
         dragPoint = absoluteMousePoint 'Save point where dragging begun.
 
     End Sub
@@ -1433,7 +1444,14 @@ Public Class blockForm
     End Sub
     Private Sub CheckDragging()
 
-        If Not ctrlKeyDown And mouseIsDown And dragStart And dragPoint <> absoluteMousePoint And counter > 5 And Not onFrame And Not followingObject Then
+        'How much to move mouse before starting the drag.
+        Dim dragOffset As PointF = New PointF(Math.Abs(dragPoint.X - absoluteMousePoint.X), Math.Abs(dragPoint.Y - absoluteMousePoint.Y))
+
+        If mouseIsDown And (dragOffset.X > 20 Or dragOffset.Y > 20) Then
+            dragStart = True
+        End If
+
+        If Not ctrlKeyDown And dragStart And counter > 5 And Not onFrame And Not followingObject Then
 
             dragging = True
 
@@ -1466,10 +1484,59 @@ Public Class blockForm
     End Sub
     Private Sub ObjectHover()
 
-        Dim objList As New List(Of StellarObject)
-        objList.AddRange(myUniverse.Objects.FindAll(Function(o)
-                                                        Return o.IsMerged = False And o.isVisible = True
-                                                    End Function))
+        'If we haven't selected anything.
+        If selectedObject Is Nothing Then
+
+            'Show info if hovering object.
+            If hover Then
+                showHoverLabel(hoverObject)
+            Else
+                hoverLabel.Visible = False
+                hoverObject = Nothing 'Empty object.
+            End If
+        End If
+
+    End Sub
+    Private Sub ObjectSelected()
+
+        'If clicked on nothing, clear selection.
+        If Not hover Then
+
+            If selectedObject IsNot Nothing Then
+                selectedObject.IsSelected = False
+                selectedObject = Nothing
+            End If
+
+        Else
+
+            If selectedObject IsNot Nothing Then
+
+                selectedObject.IsSelected = False
+
+                If selectedObject.Equals(hoverObject) Then 'If clicked on self, clear selection.
+                    selectedObject = Nothing
+                    Me.Focus()
+                    Exit Sub
+                End If
+
+            End If
+
+            selectedObject = hoverObject 'Set new selected object.
+            selectedObject.IsSelected = True
+
+            'Reset trajectories if followed object changed.
+            If followingObject Then
+                For Each obj In myUniverse.Objects
+                    obj.ClearTrajectory()
+                    obj.ClearRelativeDistances()
+                Next
+            End If
+
+        End If
+
+    End Sub
+    Private Sub ObjectUnderMouse(ByVal objList As List(Of StellarObject))
+
         hover = False 'Reset flag.
 
         For Each obj In objList
@@ -1481,121 +1548,90 @@ Public Class blockForm
 
                 If Math.Round(ellipseEquation, 2) <= 1 Then
 
+                    hoverObject = objList.Item(objList.IndexOf(obj)) 'Get reference to original item not the local copy.
                     hover = True 'Set flag.
-                    hoverObject = obj
                     Exit For
 
                 End If
 
-            Else
+            ElseIf obj.isPlanet Then
                 Dim planet As Planet = CType(obj, Planet) 'Cast object as planet.
                 Dim rec As New RectangleF(New PointF(planet.GetVertices(0).X, planet.GetVertices(0).Y), New Size(planet.Size + planet.GetBorderWidth, planet.Size + planet.GetBorderWidth))
 
                 If rec.Contains(mousePoint) Then
-                    hoverObject = obj
+                    hoverObject = objList.Item(objList.IndexOf(obj)) 'Get reference to original item not the local copy.
                     hover = True 'Set flag.
                     Exit For
                 End If
 
             End If
 
-            'This selects merged objects.
-            If obj.IsSelected Then
-                selectedObject = obj
-            End If
-
         Next
 
-        'If we haven't selected anything.
-        If selectedObject Is Nothing Then
+    End Sub
 
-            'Update text fields with info of hovering object.
-            If hover Then
-                UpdateSelectedTxtInfo(hoverObject)
-            Else 'Show nothing.
-                hoverObject = Nothing 'Empty object.
-                UpdateSelectedTxtInfo(hoverObject) 'Clear fields.
+    Private Delegate Sub showHoverLabelDelegate(ByVal obj As StellarObject)
+    Private Sub showHoverLabel(ByVal obj As StellarObject)
+
+        If obj IsNot Nothing Then
+
+            Dim objLocX As String = Math.Round(obj.CenterOfMass.X, 2).ToString
+            Dim objLocY As String = Math.Round(obj.CenterOfMass.Y, 2).ToString
+            Dim objAccX As String = Math.Round(obj.AccX, 4).ToString
+            Dim objAccY As String = Math.Round(obj.AccY, 4).ToString
+            Dim objVelX As String = Math.Round(obj.VelX, 4).ToString
+            Dim objVelY As String = Math.Round(obj.VelY, 4).ToString
+
+            If objAccX = "0" And obj.AccX <> 0 Then
+                objAccX = "~0"
+            End If
+            If objAccY = "0" And obj.AccY <> 0 Then
+                objAccY = "~0"
+            End If
+            If objVelX = "0" And obj.VelX <> 0 Then
+                objVelX = "~0"
+            End If
+            If objVelY = "0" And obj.VelY <> 0 Then
+                objVelY = "~0"
             End If
 
-        ElseIf selectedObject.IsMerged Then
+            'Create label once.
+            If hoverLabel.Parent Is Nothing Then
 
-            selectedObject = Nothing 'Empty object.
-            UpdateSelectedTxtInfo(selectedObject) 'Clear fields.
+                hoverLabel.Size = New Size(105, 46)
+                hoverLabel.AutoSize = True
+                hoverLabel.BorderStyle = BorderStyle.FixedSingle
+                hoverLabel.ForeColor = Color.White
+                hoverLabel.BackColor = Color.FromArgb(64, 64, 64)
+                hoverLabel.Font = New Font("Calibri", 9)
+                hoverLabel.Parent = Me
+                AddHandler hoverLabel.MouseMove, AddressOf hoverLabelMouseMove
+                hoverLabel.Show()
+
+            End If
+
+            Dim objCenter() As PointF = {New PointF(obj.CenterOfMass.X + obj.Radius, obj.CenterOfMass.Y - obj.Radius)}
+            obj.UniverseMatrix.TransformPoints(objCenter)
+
+            'Set label position under the mouse.
+            hoverLabel.Text = "L: " + objLocX + " - " + objLocY + vbCrLf + "A: " + objAccX + " - " + objAccY + vbCrLf + "V: " + objVelX + " - " + objVelY
+            hoverLabel.Location = New Point(objCenter(0).X, objCenter(0).Y - hoverLabel.Size.Height)
+            hoverLabel.Visible = True
+            hoverLabel.BringToFront()
 
         End If
 
     End Sub
-    Private Sub ObjectSelected()
+    Private Delegate Sub hideHoverLabelDelegate()
+    Private Sub hideHoverLabel()
 
-        'If clicked on nothing, clear selection.
-        If Not hover And counter < 10 Then
-
-            If selectedObject IsNot Nothing Then
-                selectedObject.IsSelected = False
-                selectedObject = Nothing
-            End If
-
-        ElseIf counter < 10 Then
-
-            If selectedObject IsNot Nothing Then
-
-                If Not selectedObject.Equals(hoverObject) Then 'If clicked on another object.
-                    selectedObject.IsSelected = False
-                Else 'If clicked on self, deselect and exit sub.
-
-                    selectedObject.IsSelected = False
-                    selectedObject = Nothing
-                    Exit Sub
-
-                End If
-
-            End If
-
-            selectedObject = hoverObject 'Set new selected object.
-            selectedObject.IsSelected = True
-
-        End If
+        hoverLabel.Visible = False
 
     End Sub
-    Private Delegate Sub UpdateSelectedTxtInfoDelegate(ByVal obj As StellarObject)
-    Private Sub UpdateSelectedTxtInfo(ByVal obj As StellarObject)
+    Private Sub hoverLabelMouseMove()
 
-        If boxObjectInfo.InvokeRequired Then
-            Try
-                boxObjectInfo.Invoke(New UpdateSelectedTxtInfoDelegate(AddressOf UpdateSelectedTxtInfo), New Object() {obj})
-            Catch ex As Exception
-                Console.WriteLine(ex.ToString)
-            End Try
-        Else
-            If obj IsNot Nothing Then
-
-                Dim objLocX As String = obj.CenterOfMass.X.ToString
-                Dim objLocY As String = obj.CenterOfMass.Y.ToString
-                Dim objAccX As String = obj.AccX.ToString
-                Dim objAccY As String = obj.AccY.ToString
-                Dim objVelX As String = obj.VelX.ToString
-                Dim objVelY As String = obj.VelY.ToString
-
-                'txtInfoLocX.Text = objLocX
-                'txtInfoLocY.Text = objLocY
-
-                'txtInfoAccX.Text = objAccX
-                'txtInfoAccY.Text = objAccY
-                'txtInfoVelX.Text = objVelX
-                'txtInfoVelY.Text = objVelY
-
-                'txtInfoMass.Text = obj.Mass.ToString
-
-                'If obj.isStar Then
-                '    txtInfoSize.Text = obj.Radius.ToString
-                'Else
-                '    txtInfoSize.Text = obj.Size.ToString
-                'End If
-
-            Else
-
-            End If
-        End If
+        'We need this so we can catch mouse movemenets above objects that are behind labels.
+        Me.OnMouseMove(New MouseEventArgs(MouseButtons.None, 0, 0, 0, 0))
 
     End Sub
     '----------------------------------------------------------------------------------------------------------------------
@@ -1658,6 +1694,11 @@ Public Class blockForm
         followObject(followingObject)
 
     End Sub
+    Private Sub chkHideHover_CheckedChanged(sender As Object, e As EventArgs) Handles chkHideInfo.CheckedChanged
+
+        hideHoverInfo = chkHideInfo.Checked
+
+    End Sub
 
     Private Sub numTimeTick_ValueChanged(sender As Object, e As EventArgs) Handles numTimeTick.ValueChanged
 
@@ -1669,6 +1710,7 @@ Public Class blockForm
 
         myUniverse.DrawTraj = chkDrawTrajectories.Checked
         numTraj.Visible = chkDrawTrajectories.Checked
+        boxTraj.Enabled = chkDrawTrajectories.Checked
 
         If Not chkDrawTrajectories.Checked Then
             myUniverse.Planets.ForEach(Sub(p) p.ClearTrajectory())
@@ -1748,10 +1790,6 @@ Public Class blockForm
 
             'Center around object and follow it.
             moveUniverse(objCenter, universeDefaultCenter)
-
-            'Update oldOffset point to signal the program this is not a normal drag and to accept clicks.
-            oldOffset = New PointF(clipOffsetX, clipOffsetY)
-
         End If
 
     End Sub

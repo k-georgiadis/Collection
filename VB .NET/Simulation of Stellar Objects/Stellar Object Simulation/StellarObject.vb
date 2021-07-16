@@ -470,10 +470,6 @@ Public Class StellarObject
             obj.AccX += currentAccX
             obj.AccY += currentAccY
 
-            If Math.Abs(oldacc - obj.AccX) > 0.1 Then
-                Dim kek = 1
-
-            End If
             obj.AddVelX(currentAccX)
             obj.AddVelY(currentAccY)
         Next
@@ -568,6 +564,7 @@ Public Class StellarObject
                             If Math.Abs(objectCenterOfMass.X - lastPoint.X) > 100 Or Math.Abs(objectCenterOfMass.Y - lastPoint.Y) > 100 Then
 
                                 ClearTrajectory()
+                                ClearRelativeDistances()
                                 objectTrajectoryPoints.Add(singlePoint) 'Add first point again.
 
                             End If
@@ -585,7 +582,7 @@ Public Class StellarObject
                 'Create path.
                 Dim graphicsPath As New Drawing2D.GraphicsPath
 
-                'Calculate original distances from followed object.
+                'Draw relative trajectory, if said so.
                 If objectUniverse.RelativeTraj Or objectUniverse.drawBothTraj Then
 
                     If addRelativeDist Then
