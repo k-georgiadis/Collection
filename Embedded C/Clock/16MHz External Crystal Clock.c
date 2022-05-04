@@ -15,7 +15,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 #include <avr/io.h>
 #include <avr/interrupt.h>
 
-#define F_CPU 			16000000UL
+#define F_CPU			16000000UL
 #define MAX_DISPLAYS	4
 
 volatile uint8_t digits[MAX_DISPLAYS]; //Digits to display.
