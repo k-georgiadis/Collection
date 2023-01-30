@@ -1,0 +1,11 @@
+C:\Users\CosmaOne\Documents\Visual Studio 2015\Projects\Stellar Object Simulation\Stellar Object Simulation\bin\Release\Stellar Object Simulation.exe.config
+C:\Users\CosmaOne\Documents\Visual Studio 2015\Projects\Stellar Object Simulation\Stellar Object Simulation\bin\Release\Stellar Object Simulation.exe
+C:\Users\CosmaOne\Documents\Visual Studio 2015\Projects\Stellar Object Simulation\Stellar Object Simulation\bin\Release\Stellar Object Simulation.pdb
+C:\Users\CosmaOne\Documents\Visual Studio 2015\Projects\Stellar Object Simulation\Stellar Object Simulation\bin\Release\Stellar Object Simulation.xml
+C:\Users\CosmaOne\Documents\Visual Studio 2015\Projects\Stellar Object Simulation\Stellar Object Simulation\obj\Release\Stellar Object Simulation.vbprojAssemblyReference.cache
+C:\Users\CosmaOne\Documents\Visual Studio 2015\Projects\Stellar Object Simulation\Stellar Object Simulation\obj\Release\StellarObjectSimulation.blockForm.resources
+C:\Users\CosmaOne\Documents\Visual Studio 2015\Projects\Stellar Object Simulation\Stellar Object Simulation\obj\Release\StellarObjectSimulation.Resources.resources
+C:\Users\CosmaOne\Documents\Visual Studio 2015\Projects\Stellar Object Simulation\Stellar Object Simulation\obj\Release\Stellar Object Simulation.vbproj.GenerateResource.cache
+C:\Users\CosmaOne\Documents\Visual Studio 2015\Projects\Stellar Object Simulation\Stellar Object Simulation\obj\Release\Stellar Object Simulation.exe
+C:\Users\CosmaOne\Documents\Visual Studio 2015\Projects\Stellar Object Simulation\Stellar Object Simulation\obj\Release\Stellar Object Simulation.xml
+C:\Users\CosmaOne\Documents\Visual Studio 2015\Projects\Stellar Object Simulation\Stellar Object Simulation\obj\Release\Stellar Object Simulation.pdb

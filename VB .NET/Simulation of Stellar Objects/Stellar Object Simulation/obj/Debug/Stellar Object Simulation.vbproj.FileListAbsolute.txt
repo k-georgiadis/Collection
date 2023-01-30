@@ -1,13 +1,37 @@
-C:\Users\maple\source\repos\k-georgiadis\Collection\VB .NET\Simulation of Stellar Objects\Stellar Object Simulation\bin\Debug\Stellar Object Simulation.exe.config
-C:\Users\maple\source\repos\k-georgiadis\Collection\VB .NET\Simulation of Stellar Objects\Stellar Object Simulation\bin\Debug\Stellar Object Simulation.exe
-C:\Users\maple\source\repos\k-georgiadis\Collection\VB .NET\Simulation of Stellar Objects\Stellar Object Simulation\bin\Debug\Stellar Object Simulation.pdb
-C:\Users\maple\source\repos\k-georgiadis\Collection\VB .NET\Simulation of Stellar Objects\Stellar Object Simulation\bin\Debug\Stellar Object Simulation.xml
-C:\Users\maple\source\repos\k-georgiadis\Collection\VB .NET\Simulation of Stellar Objects\Stellar Object Simulation\obj\Debug\Stellar Object Simulation.vbproj.AssemblyReference.cache
-C:\Users\maple\source\repos\k-georgiadis\Collection\VB .NET\Simulation of Stellar Objects\Stellar Object Simulation\obj\Debug\Stellar Object Simulation.vbproj.SuggestedBindingRedirects.cache
-C:\Users\maple\source\repos\k-georgiadis\Collection\VB .NET\Simulation of Stellar Objects\Stellar Object Simulation\obj\Debug\StellarObjectSimulation.blockForm.resources
-C:\Users\maple\source\repos\k-georgiadis\Collection\VB .NET\Simulation of Stellar Objects\Stellar Object Simulation\obj\Debug\StellarObjectSimulation.Resources.resources
-C:\Users\maple\source\repos\k-georgiadis\Collection\VB .NET\Simulation of Stellar Objects\Stellar Object Simulation\obj\Debug\Stellar Object Simulation.vbproj.GenerateResource.cache
-C:\Users\maple\source\repos\k-georgiadis\Collection\VB .NET\Simulation of Stellar Objects\Stellar Object Simulation\obj\Debug\Stellar Object Simulation.vbproj.CoreCompileInputs.cache
-C:\Users\maple\source\repos\k-georgiadis\Collection\VB .NET\Simulation of Stellar Objects\Stellar Object Simulation\obj\Debug\Stellar Object Simulation.exe
-C:\Users\maple\source\repos\k-georgiadis\Collection\VB .NET\Simulation of Stellar Objects\Stellar Object Simulation\obj\Debug\Stellar Object Simulation.xml
-C:\Users\maple\source\repos\k-georgiadis\Collection\VB .NET\Simulation of Stellar Objects\Stellar Object Simulation\obj\Debug\Stellar Object Simulation.pdb
+C:\Users\CosmaOne\Documents\Visual Studio 2015\Projects\Stellar Object Simulation\Stellar Object Simulation\bin\Debug\Stellar Object Simulation.exe.config
+C:\Users\CosmaOne\Documents\Visual Studio 2015\Projects\Stellar Object Simulation\Stellar Object Simulation\bin\Debug\Stellar Object Simulation.exe
+C:\Users\CosmaOne\Documents\Visual Studio 2015\Projects\Stellar Object Simulation\Stellar Object Simulation\bin\Debug\Stellar Object Simulation.pdb
+C:\Users\CosmaOne\Documents\Visual Studio 2015\Projects\Stellar Object Simulation\Stellar Object Simulation\bin\Debug\Stellar Object Simulation.xml
+C:\Users\CosmaOne\Documents\Visual Studio 2015\Projects\Stellar Object Simulation\Stellar Object Simulation\obj\Debug\StellarObjectSimulation.blockForm.resources
+C:\Users\CosmaOne\Documents\Visual Studio 2015\Projects\Stellar Object Simulation\Stellar Object Simulation\obj\Debug\StellarObjectSimulation.Resources.resources
+C:\Users\CosmaOne\Documents\Visual Studio 2015\Projects\Stellar Object Simulation\Stellar Object Simulation\obj\Debug\Stellar Object Simulation.vbproj.GenerateResource.cache
+C:\Users\CosmaOne\Documents\Visual Studio 2015\Projects\Stellar Object Simulation\Stellar Object Simulation\obj\Debug\Stellar Object Simulation.exe
+C:\Users\CosmaOne\Documents\Visual Studio 2015\Projects\Stellar Object Simulation\Stellar Object Simulation\obj\Debug\Stellar Object Simulation.xml
+C:\Users\CosmaOne\Documents\Visual Studio 2015\Projects\Stellar Object Simulation\Stellar Object Simulation\obj\Debug\Stellar Object Simulation.pdb
+C:\Users\CosmaOne\Documents\Visual Studio 2015\Projects\Stellar Object Simulation\Stellar Object Simulation\obj\Debug\Stellar Object Simulation.vbprojAssemblyReference.cache
+C:\Users\maple\Documents\Visual Studio 2022\Projects\Stellar Object Simulation\Stellar Object Simulation\bin\Debug\Stellar Object Simulation.exe.config
+C:\Users\maple\Documents\Visual Studio 2022\Projects\Stellar Object Simulation\Stellar Object Simulation\bin\Debug\Stellar Object Simulation.exe
+C:\Users\maple\Documents\Visual Studio 2022\Projects\Stellar Object Simulation\Stellar Object Simulation\bin\Debug\Stellar Object Simulation.pdb
+C:\Users\maple\Documents\Visual Studio 2022\Projects\Stellar Object Simulation\Stellar Object Simulation\bin\Debug\Stellar Object Simulation.xml
+C:\Users\maple\Documents\Visual Studio 2022\Projects\Stellar Object Simulation\Stellar Object Simulation\obj\Debug\Stellar Object Simulation.vbproj.AssemblyReference.cache
+C:\Users\maple\Documents\Visual Studio 2022\Projects\Stellar Object Simulation\Stellar Object Simulation\obj\Debug\Stellar Object Simulation.vbproj.SuggestedBindingRedirects.cache
+C:\Users\maple\Documents\Visual Studio 2022\Projects\Stellar Object Simulation\Stellar Object Simulation\obj\Debug\StellarObjectSimulation.blockForm.resources
+C:\Users\maple\Documents\Visual Studio 2022\Projects\Stellar Object Simulation\Stellar Object Simulation\obj\Debug\StellarObjectSimulation.Resources.resources
+C:\Users\maple\Documents\Visual Studio 2022\Projects\Stellar Object Simulation\Stellar Object Simulation\obj\Debug\Stellar Object Simulation.vbproj.GenerateResource.cache
+C:\Users\maple\Documents\Visual Studio 2022\Projects\Stellar Object Simulation\Stellar Object Simulation\obj\Debug\Stellar Object Simulation.vbproj.CoreCompileInputs.cache
+C:\Users\maple\Documents\Visual Studio 2022\Projects\Stellar Object Simulation\Stellar Object Simulation\obj\Debug\Stellar Object Simulation.exe
+C:\Users\maple\Documents\Visual Studio 2022\Projects\Stellar Object Simulation\Stellar Object Simulation\obj\Debug\Stellar Object Simulation.xml
+C:\Users\maple\Documents\Visual Studio 2022\Projects\Stellar Object Simulation\Stellar Object Simulation\obj\Debug\Stellar Object Simulation.pdb
+C:\Users\maple\Documents\GitHub\Collection\VB .NET\Simulation of Stellar Objects\Stellar Object Simulation\bin\Debug\Stellar Object Simulation.exe.config
+C:\Users\maple\Documents\GitHub\Collection\VB .NET\Simulation of Stellar Objects\Stellar Object Simulation\bin\Debug\Stellar Object Simulation.exe
+C:\Users\maple\Documents\GitHub\Collection\VB .NET\Simulation of Stellar Objects\Stellar Object Simulation\bin\Debug\Stellar Object Simulation.pdb
+C:\Users\maple\Documents\GitHub\Collection\VB .NET\Simulation of Stellar Objects\Stellar Object Simulation\bin\Debug\Stellar Object Simulation.xml
+C:\Users\maple\Documents\GitHub\Collection\VB .NET\Simulation of Stellar Objects\Stellar Object Simulation\obj\Debug\Stellar Object Simulation.vbproj.AssemblyReference.cache
+C:\Users\maple\Documents\GitHub\Collection\VB .NET\Simulation of Stellar Objects\Stellar Object Simulation\obj\Debug\Stellar Object Simulation.vbproj.SuggestedBindingRedirects.cache
+C:\Users\maple\Documents\GitHub\Collection\VB .NET\Simulation of Stellar Objects\Stellar Object Simulation\obj\Debug\StellarObjectSimulation.blockForm.resources
+C:\Users\maple\Documents\GitHub\Collection\VB .NET\Simulation of Stellar Objects\Stellar Object Simulation\obj\Debug\StellarObjectSimulation.Resources.resources
+C:\Users\maple\Documents\GitHub\Collection\VB .NET\Simulation of Stellar Objects\Stellar Object Simulation\obj\Debug\Stellar Object Simulation.vbproj.GenerateResource.cache
+C:\Users\maple\Documents\GitHub\Collection\VB .NET\Simulation of Stellar Objects\Stellar Object Simulation\obj\Debug\Stellar Object Simulation.vbproj.CoreCompileInputs.cache
+C:\Users\maple\Documents\GitHub\Collection\VB .NET\Simulation of Stellar Objects\Stellar Object Simulation\obj\Debug\Stellar Object Simulation.exe
+C:\Users\maple\Documents\GitHub\Collection\VB .NET\Simulation of Stellar Objects\Stellar Object Simulation\obj\Debug\Stellar Object Simulation.xml
+C:\Users\maple\Documents\GitHub\Collection\VB .NET\Simulation of Stellar Objects\Stellar Object Simulation\obj\Debug\Stellar Object Simulation.pdb
