@@ -1,6 +1,6 @@
 ﻿'MIT License
 
-'Copyright (c) 2021 Kosmas Georgiadis
+'Copyright (c) 2023 Kosmas Georgiadis
 
 'Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
 
@@ -13,10 +13,16 @@ Public Structure PointFD
 
     Public X As Double
     Public Y As Double
+    Public Z As Double
 
     Friend Sub New(ByVal _x As Double, ByVal _y As Double)
         X = _x
         Y = _y
+    End Sub
+    Friend Sub New(ByVal _x As Double, ByVal _y As Double, ByVal _z As Double)
+        X = _x
+        Y = _y
+        Z = _z
     End Sub
 
 End Structure

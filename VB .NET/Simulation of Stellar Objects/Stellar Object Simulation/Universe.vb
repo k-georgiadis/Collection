@@ -1,6 +1,6 @@
 ﻿'MIT License
 
-'Copyright (c) 2021 Kosmas Georgiadis
+'Copyright (c) 2023 Kosmas Georgiadis
 
 'Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
 
@@ -25,6 +25,13 @@ Public Class Universe
     Private universeMatrix As Drawing2D.Matrix
     Private defaultUniverseMatrix As Drawing2D.Matrix
 
+    'In reality it's + 1 pixel, since we like round numbers [-X/2, +X/2].
+    Private Const cosmosSectionWidth As Double = 50000
+    Private Const cosmosSectionHeight As Double = 50000
+    Private Const cosmosSectionDepth As Double = 50000
+
+    Private Const maxCosmosSections As Integer = 9
+
     Private universeWidth As Integer
     Private universeHeight As Integer
 
@@ -34,6 +41,9 @@ Public Class Universe
     Private planetList As New List(Of Planet)
     Private starList As New List(Of Star)
 
+    Private universeTickRate As Integer
+    Private universeFrameRate As Integer
+
     Private canBounce As Boolean
 
     Private drawTrajectories As Boolean
@@ -41,11 +51,17 @@ Public Class Universe
     Private bothTrajectories As Boolean
     Private maxTrajPoints As Integer
 
+    Private universeRealistic As Boolean
     Private universeDragged As Boolean
+    Private universePaused As Boolean
 
-    Private Const gravityConstant As Double = 6.674 * 10 ^ -11
-    Private Const distanceMultiplier As Integer = 1000 'Multiply each pixel by this number.
-    Private Const M As Double = 19890000000.0 ' = 1.989E+10 'This is my edited mass. The real Solar Mass = 1.989E+30
+    'In detail, the minimum mass for hydrogen fusion in a manner that is
+    'capable of sustaining a star in equilibrium against gravitational contraction, is about 0.075M, +-0.002M.
+    Private Const universeSolarMass As Double = 1.989E+30 ' Mass of the sun.
+    Private Const universeMinFusionMass As Double = 0.075 * universeSolarMass
+
+    Private Const gravityConstant As Double = 0.00000000006674
+    Private universeDistanceDelta As Double = 1000000000.0 'Default value. 1 pixel = 1 million km = 1 billion meters.
 
     Public Property DefFormWidth As Integer
         Get
@@ -116,7 +132,6 @@ Public Class Universe
         End Get
     End Property
 
-
     Public ReadOnly Property Planets() As List(Of Planet)
         Get
             Return planetList
@@ -183,6 +198,14 @@ Public Class Universe
         End Set
     End Property
 
+    Public Property isRealistic As Boolean
+        Get
+            Return universeRealistic
+        End Get
+        Set(value As Boolean)
+            universeRealistic = value
+        End Set
+    End Property
     Public Property isDragged As Boolean
         Get
             Return universeDragged
@@ -191,31 +214,87 @@ Public Class Universe
             universeDragged = value
         End Set
     End Property
+    Public Property isPaused As Boolean
+        Get
+            Return universePaused
+        End Get
+        Set(value As Boolean)
+            universePaused = value
+        End Set
+    End Property
 
     Public ReadOnly Property getGravityConstant() As Double
         Get
             Return gravityConstant
         End Get
     End Property
-    Public ReadOnly Property getDistanceMultiplier() As Integer
+    Public Property DistanceMultiplier() As Double
         Get
-            Return distanceMultiplier
+            Return universeDistanceDelta
         End Get
-
+        Set(value As Double)
+            universeDistanceDelta = value
+        End Set
     End Property
 
+    Public Property TickRate As Integer
+        Get
+            Return universeTickRate
+        End Get
+        Set(value As Integer)
+            universeTickRate = value
+        End Set
+    End Property
+    Public Property FrameRate As Integer
+        Get
+            Return universeFrameRate
+        End Get
+        Set(value As Integer)
+            universeFrameRate = value
+        End Set
+    End Property
+
+    Public Shared ReadOnly Property SolarMass As Double
+        Get
+            Return universeSolarMass
+        End Get
+    End Property
+
+    Public Shared ReadOnly Property MinFusionMass As Double
+        Get
+            Return universeMinFusionMass
+        End Get
+    End Property
+
+    Public ReadOnly Property SectionWidth As Double
+        Get
+            Return cosmosSectionWidth
+        End Get
+    End Property
+
+    Public ReadOnly Property SectionHeight As Double
+        Get
+            Return cosmosSectionHeight
+        End Get
+    End Property
+
+    Public ReadOnly Property SectionDepth As Double
+        Get
+            Return cosmosSectionDepth
+        End Get
+    End Property
 
     ' Allow friend access to the empty constructor.
     Friend Sub New()
     End Sub
 
-    Friend Sub Init(ByVal bGraphics As Graphics, ByVal defaultUniverseMatrix As Matrix, ByVal bPen As Pen, ByVal uWidth As Integer, ByVal uHeight As Integer,
+    Friend Sub Init(ByVal bPen As Pen, ByVal uWidth As Integer, ByVal uHeight As Integer,
                     ByVal fWidth As Integer, ByVal fHeight As Integer, ByVal offset As PointFD,
                     ByVal _maxTrajPoints As Integer)
+
         universePen = bPen
         universeOffsetX = offset.X
         universeOffsetY = offset.Y
-        defUniverseMatrix = defaultUniverseMatrix
 
         universeWidth = uWidth
         universeHeight = uHeight
@@ -224,23 +303,28 @@ Public Class Universe
         defaultFormHeight = fWidth
         defaultFormHeight = fHeight
 
-        bmpImage = New Bitmap(universeWidth, universeHeight) 'Create image. Take in account the DPI factor too.
+        'Create one time only.
+        If bmpImage Is Nothing Then
 
-        universeGraphics = Graphics.FromImage(bmpImage)
-        universeGraphics.InterpolationMode = Drawing2D.InterpolationMode.HighQualityBicubic
-        universeGraphics.SmoothingMode = Drawing2D.SmoothingMode.AntiAlias
+            bmpImage = New Bitmap(universeWidth, universeHeight) 'Create image. Take in account the DPI factor too.
 
-        'Save transformation so we don't run into access violations.
-        universeMatrix = universeGraphics.Transform.Clone()
-        universeMatrix.Invert()
+            universeGraphics = Graphics.FromImage(bmpImage)
+            universeGraphics.InterpolationMode = Drawing2D.InterpolationMode.HighQualityBicubic
+            universeGraphics.SmoothingMode = Drawing2D.SmoothingMode.AntiAlias
 
-        Dim visibleBounds As RectangleF = bmpImage.GetBounds(universeGraphics.PageUnit)
-        visibleWidth = visibleBounds.Width
-        visibleHeight = visibleBounds.Height
+            'Save transformation so we don't run into access violations.
+            universeMatrix = universeGraphics.Transform.Clone
+            defUniverseMatrix = universeMatrix.Clone
 
-        universeGraphics.Clip = New Region(New RectangleF(visibleBounds.Left + universeOffsetX, visibleBounds.Top + universeOffsetY,
-                                                          visibleWidth, visibleHeight))
+            Dim visibleBounds As RectangleF = bmpImage.GetBounds(universeGraphics.PageUnit)
+            visibleWidth = visibleBounds.Width
+            visibleHeight = visibleBounds.Height
 
+            universeGraphics.Clip = New Region(New RectangleF(visibleBounds.Left + universeOffsetX,
+                                                              visibleBounds.Top + universeOffsetY, visibleWidth, visibleHeight))
+        End If
+
+        universeGraphics.Clear(Color.Black)
         canBounce = False
 
         drawTrajectories = True
@@ -248,6 +332,7 @@ Public Class Universe
         maxTrajPoints = _maxTrajPoints 'Max number of points used for each trajectory.
 
         universeDragged = False 'Flag to check if the universe is being dragged.
+        universePaused = False
 
     End Sub
     Friend Sub Live(ByRef StarArrayInUseFlag As Boolean, ByRef PlanetArrayInUseFlag As Boolean)
@@ -265,43 +350,59 @@ Public Class Universe
 
     Friend Sub applyAcceleration(ByRef StarArrayInUseFlag As Boolean, ByRef PlanetArrayInUseFlag As Boolean)
 
-        While StarArrayInUseFlag Or PlanetArrayInUseFlag
-
-        End While
+        If StarArrayInUseFlag Or PlanetArrayInUseFlag Then
+            Exit Sub
+        End If
 
         StarArrayInUseFlag = True
         PlanetArrayInUseFlag = True
 
-        'Make local copies to avoid "object in use" exceptions, as much as possible.
-        Dim objList As List(Of StellarObject) = Objects()
-
         Try
+            'Calculate acceleration from all objects in the SAME cosmos section.
+            For i = 1 To maxCosmosSections
 
-            'First, calculate acceleration from all objects.
-            For Each obj In objList
+                Dim section As Integer = i
 
-                If obj.IsMerged Then
-                    Continue For
-                End If
+                'Make local copies to avoid "object in use" exceptions, as much as possible.
+                Dim objList As New List(Of StellarObject)
+                objList.AddRange(Objects.FindAll(Function(o) o.CosmosSection = section))
 
-                obj.applyAcceleration(objList, gravityConstant)
-            Next
+                'First, reset their acceleration.
+                For Each obj In objList
+                    If Not obj.IsMerged Then
+                        obj.AccX = 0
+                        obj.AccY = 0
+                        obj.AccZ = 0
+                    End If
+                Next
 
-            'Remove merged objects.
-            objList.RemoveAll(Function(o) o.IsMerged)
-            planetList.RemoveAll(Function(o) o.IsMerged)
-            starList.RemoveAll(Function(o) o.IsMerged)
+                For Each obj In objList
 
-            'Now move them.
-            For Each obj In objList
+                    If obj.IsMerged Then
+                        Continue For
+                    End If
 
-                'Move object.
-                obj.Move(0, "", obj.CenterOfMass.X + obj.VelX, obj.CenterOfMass.Y + obj.VelY)
+                    obj.applyAcceleration(objList, gravityConstant)
+                Next
 
-                If canBounce And Not universeDragged And obj.isVisible Then
-                    obj.CheckForBounce()
-                End If
+                'Remove merged objects.
+                objList.RemoveAll(Function(o) o.IsMerged)
+                planetList.RemoveAll(Function(o) o.IsMerged)
+                starList.RemoveAll(Function(o) o.IsMerged)
 
+                'Now move them.
+                For Each obj In objList
+
+                    'Move object. Remember to account for the distance multiplier.
+                    obj.Move(0, "", obj.CenterOfMass.X + obj.VelX / DistanceMultiplier,
+                                    obj.CenterOfMass.Y + obj.VelY / DistanceMultiplier,
+                                    obj.CenterOfMass.Z + obj.VelZ / DistanceMultiplier)
+
+                    If canBounce And Not universeDragged And obj.isVisible Then
+                        obj.CheckForBounce()
+                    End If
+
+                Next
             Next
         Catch ex As Exception
             Console.Write(ex.ToString)
