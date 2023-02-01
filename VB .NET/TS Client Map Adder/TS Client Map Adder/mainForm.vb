@@ -10,6 +10,7 @@
 
 Imports System.Configuration
 Imports System.Xml
+Imports System.Xml.Serialization
 
 Public Class mainForm
 
@@ -282,7 +283,26 @@ Public Class mainForm
                             Dim imagePath As String = mapName.Substring(0, mapNameStart) + map.filename + customOutput(0)
                             image = Bitmap.FromFile(imagePath)
 
-                            Dim newImage = New Bitmap(image, New Size(800, 400)) 'Resize image to TS Client's valid dimensions.
+                            'Correct aspect ratio, if needed, in a "hacky" way.
+                            'This is obviously not tested and probably shouldn't be xDDD.
+
+                            'UPDATE:
+                            'TS Client has trouble aligning the start position markers in the correct position though.
+                            'The latest versions of TS Client (v6.0+) don't need to add custom maps to the MPMaps.ini file at all.
+                            'They appear in the "Custom Map" category inside the map selection screen.
+                            'This fixes the issue of the spawn marker alignment but it also makes this whole program useless.
+                            'RIP TS Client - Map Adder (2021 - 2023)
+
+                            Dim newSize As New Size(800, 400)
+
+                            If CInt(image.Height / image.Width) > 1 Then '1824 x 4200 -> 228 x 525
+                                newSize.Width = 800 - image.Height / image.Width * 200
+                            End If
+                            If CInt(image.Width / image.Height) > 2 Then '6960 x 2424 -> 435 x 151
+                                newSize.Height = 400 - image.Width / image.Height * 50
+                            End If
+
+                            Dim newImage = New Bitmap(image, newSize) 'Resize image to TS Client's valid dimensions.
                             image.Dispose() 'Close original file.
 
                             newImage.Save(imagePath, Imaging.ImageFormat.Png) 'Save image.
@@ -432,156 +452,302 @@ Public Class mainForm
             nodeList.Add(node)
         Next
 
-        'PNG option.
-        If nodeList.Find(Function(x) x.Attributes("name").Value.Equals("outputpng")).InnerXml.Equals("True") Then
+        Try
 
-            settings += " -p"
-            info(0) = ".png" 'We need to know this.
+            Dim xml_node As XmlNode = FindAttribute(nodeList, "outputpng")
 
-            'Add compression.
-            Dim compression As String = nodeList.Find(Function(x) x.Attributes("name").Value.Equals("outputpngq")).InnerXml
+            'PNG option.
+            If GetInnerXml(xml_node).Equals("True") Then
 
-            If Not compression.Equals("") Then
-                settings += " -c " + compression
+                settings += " -p"
+                info(0) = ".png" 'We need to know this.
+
+                'Add compression.
+                xml_node = FindAttribute(nodeList, "outputpngq")
+                Dim compression As String = GetInnerXml(xml_node)
+
+                If Not String.IsNullOrEmpty(compression) Then
+                    settings += " -c " + compression
+                End If
             End If
-        End If
 
-        'Get file type index.
-        Dim type As Integer = mapName.IndexOf(".map")
-        If type < 0 Then type = mapName.IndexOf(".mpr")
+            'Get file type index.
+            Dim type As Integer = mapName.IndexOf(".map")
+            If type < 0 Then type = mapName.IndexOf(".mpr")
 
-        'Automatic/custom output filename option.
+            'Automatic/custom output filename option.
 
-        'OVERRIDE IT SINCE THE FILENAMES OF THE MAP AND THE PREVIEW MUST BE THE SAME.
+            'OVERRIDE IT SINCE THE FILENAMES OF THE MAP AND THE PREVIEW MUST BE THE SAME.
 
-        'If nodeList.Find(Function(x) x.Attributes("name").Value.Equals("outputauto")).InnerXml.Equals("False") Then
+            'xml_node = FindAttribute(nodeList, "outputauto")
 
-        '    Dim custom As String = nodeList.Find(Function(x) x.Attributes("name").Value.Equals("customfilename")).InnerXml
+            'If GetInnerXml.Equals("False") Then
 
-        '    If Not custom.Equals("") Then
-        '        settings += " -o """ + custom + """"
-        '        info(1) = custom 'Save output name for later.
-        '    End If
-        'End If
+            '    xml_node = FindAttribute(nodeList, "customfilename")
+            '    Dim custom As String = GetInnerXml(xml_node)
 
-        settings += " -o """ + mapName.Remove(type) + """"
+            '    If Not String.IsNullOrEmpty(custom) Then
+            '        settings += " -o """ + custom + """"
+            '        info(1) = custom 'Save output name for later.
+            '    End If
+            'End If
 
-        'JPG option.
-        If nodeList.Find(Function(x) x.Attributes("name").Value.Equals("outputjpg")).InnerXml.ToString.Equals("True") Then
+            settings += " -o """ + mapName.Remove(type) + """"
 
-            settings += " -j"
-            info(0) = ".jpg" 'We need to know this.
+            'JPG option.
+            xml_node = FindAttribute(nodeList, "outputjpg")
 
-            'Add quality.
-            Dim quality As String = nodeList.Find(Function(x) x.Attributes("name").Value.Equals("outputjpgq")).InnerXml
+            If GetInnerXml(xml_node).Equals("True") Then
 
-            If Not quality.Equals("") Then
-                settings += " -q " + quality
+                settings += " -j"
+                info(0) = ".jpg" 'We need to know this.
+
+                'Add quality.
+                xml_node = FindAttribute(nodeList, "outputjpgq")
+                Dim quality As String = GetInnerXml(xml_node)
+
+                If Not String.IsNullOrEmpty(quality) Then
+                    settings += " -q " + quality
+                End If
             End If
-        End If
 
-        'Special mod config option.
-        If nodeList.Find(Function(x) x.Attributes("name").Value.Equals("modconfig")).InnerXml.Equals("True") Then
+            'Special mod config option.
+            xml_node = FindAttribute(nodeList, "modconfig")
 
-            Dim modFile As String = nodeList.Find(Function(x) x.Attributes("name").Value.Equals("modconfigfile")).InnerXml
+            If GetInnerXml(xml_node).Equals("True") Then
 
-            If Not modFile.Equals("") Then
-                settings += " -M """ + modFile + """"
-            End If
-        Else
+                xml_node = FindAttribute(nodeList, "modconfigfile")
+                Dim modFile As String = GetInnerXml(xml_node)
 
-            Dim mixDir As String = nodeList.Find(Function(x) x.Attributes("name").Value.Equals("mixdir")).InnerXml
-
-            If Not mixDir.Equals("") Then
-                settings += " -m """ + mixDir + """"
-            End If
-        End If
-
-        'Engine rules option.
-        If nodeList.Find(Function(x) x.Attributes("name").Value.Equals("engineauto")).InnerXml.Equals("False") Then
-
-            Dim engRules As String = nodeList.Find(Function(x) x.Attributes("name").Value.Equals("engineyr")).InnerXml
-
-            If engRules.Equals("False") Then
-                engRules = nodeList.Find(Function(x) x.Attributes("name").Value.Equals("enginera2")).InnerXml
-
-                If engRules.Equals("False") Then
-                    engRules = nodeList.Find(Function(x) x.Attributes("name").Value.Equals("enginets")).InnerXml
-
-                    If engRules.Equals("False") Then
-                        settings += " -T" 'FS
-                    Else
-                        settings += " -t" 'TS
-                    End If
-                Else
-                    settings += " -y" 'RA2
+                If Not String.IsNullOrEmpty(modFile) Then
+                    settings += " -M """ + modFile + """"
                 End If
             Else
-                settings += " -Y" 'YR
+
+                xml_node = FindAttribute(nodeList, "mixdir")
+                Dim mixDir As String = GetInnerXml(xml_node)
+
+                If Not String.IsNullOrEmpty(mixDir) Then
+                    settings += " -m """ + mixDir + """"
+                End If
             End If
 
-        End If
+            'Engine rules option.
+            xml_node = FindAttribute(nodeList, "engineauto")
 
-        'Emphasize ore/gems option.
-        If nodeList.Find(Function(x) x.Attributes("name").Value.Equals("emphore")).InnerXml.Equals("True") Then
-            settings += " -r"
-        End If
+            If GetInnerXml(xml_node).Equals("False") Then
 
-        'Squared start positions option.
-        If nodeList.Find(Function(x) x.Attributes("name").Value.Equals("squaredpos")).InnerXml.Equals("True") Then
-            settings += " -S"
-        End If
+                xml_node = FindAttribute(nodeList, "engineyr")
+                Dim engRules As String = GetInnerXml(xml_node)
 
-        'Tiled start positions option.
-        If nodeList.Find(Function(x) x.Attributes("name").Value.Equals("tiledpos")).InnerXml.Equals("True") Then
-            settings += " -s"
-        End If
+                If engRules.Equals("False") Then
+                    engRules = FindAttribute(nodeList, "enginera2").InnerXml
 
-        'Size mode option.
-        If nodeList.Find(Function(x) x.Attributes("name").Value.Equals("autosize")).InnerXml.Equals("False") Then
-            If nodeList.Find(Function(x) x.Attributes("name").Value.Equals("localsize")).InnerXml.Equals("True") Then
-                settings += " -f"
-            ElseIf nodeList.Find(Function(x) x.Attributes("name").Value.Equals("fullsize")).InnerXml.Equals("True") Then
-                settings += " -F"
-            End If
-        End If
+                    If engRules.Equals("False") Then
+                        engRules = FindAttribute(nodeList, "enginets").InnerXml
 
-        'Thumbnail injection option.
-        If nodeList.Find(Function(x) x.Attributes("name").Value.Equals("injectthumb")).InnerXml.Equals("True") Then
-            If nodeList.Find(Function(x) x.Attributes("name").Value.Equals("omitsquarespreview")).InnerXml.Equals("True") Then
-                settings += " -K"
-            Else
-                settings += " -k"
-            End If
-        End If
+                        If engRules.Equals("False") Then
+                            settings += " -T" 'FS
+                        Else
+                            settings += " -t" 'TS
+                        End If
+                    Else
+                        settings += " -y" 'RA2
+                    End If
+                Else
+                    settings += " -Y" 'YR
+                End If
 
-        'Output thumbnail option.
-        If nodeList.Find(Function(x) x.Attributes("name").Value.Equals("outputthumb")).InnerXml.Equals("True") Then
-
-            settings += " -z"
-
-            If nodeList.Find(Function(x) x.Attributes("name").Value.Equals("thumbpreserveaspect")).InnerXml.Equals("True") Then
-                settings += " +"
-            Else
-                settings += " "
             End If
 
-            'Get thumbnail dimensions.
-            Dim dimensions As String = nodeList.Find(Function(x) x.Attributes("name").Value.Equals("thumbdimensions")).InnerXml
+            'Emphasize ore/gems option.
+            xml_node = FindAttribute(nodeList, "emphore")
 
-            'Markers type option is not currently saved in the XML file (v2.0.8.8713.0).
-            Dim markers As String = "bittah" 'config.Item("XXXX").Value.ToString
+            If GetInnerXml(xml_node).Equals("True") Then
+                settings += " -r"
+            End If
 
-            settings += "(" + dimensions + ")"
-            settings += " --preview-markers-" + markers
+            'Squared start positions option.
+            'This option is merged with the "startmarkertype" option in the latest versions.
+            xml_node = FindAttribute(nodeList, "squaredpos")
 
-        End If
+            If GetInnerXml(xml_node).Equals("True") Then
+                settings += " -S"
+            End If
 
-        'Voxel rendering mode option is apparently not used (v2.0.8.8713.0).
-        'Maybe the renderer itself uses a default option and just doesn't get it from the GUI.
-        '......
+            'Tiled start positions option.
+            'This option is merged with the "startmarkertype" option in the latest versions.
+            xml_node = FindAttribute(nodeList, "tiledpos")
+
+            If GetInnerXml(xml_node).Equals("True") Then
+                settings += " -s"
+            End If
+
+            'Size mode option.
+            xml_node = FindAttribute(nodeList, "autosize")
+
+            If GetInnerXml(xml_node).Equals("False") Then
+
+                xml_node = FindAttribute(nodeList, "localsize")
+
+                If GetInnerXml(xml_node).Equals("True") Then
+                    settings += " -f"
+                Else
+                    xml_node = FindAttribute(nodeList, "fullsize")
+
+                    If GetInnerXml(xml_node).Equals("True") Then
+                        settings += " -F"
+                    End If
+                End If
+            End If
+
+            'Output thumbnail option.
+            xml_node = FindAttribute(nodeList, "outputthumb")
+
+            If GetInnerXml(xml_node).Equals("True") Then
+
+                'Get thumbnail dimensions.
+                xml_node = FindAttribute(nodeList, "thumbdimensions")
+                Dim dimensions As String = GetInnerXml(xml_node)
+
+                If Not String.IsNullOrEmpty(dimensions) Then
+
+                    settings += " -z"
+
+                    xml_node = FindAttribute(nodeList, "thumbpreserveaspect")
+
+                    If GetInnerXml(xml_node).Equals("True") Then
+                        settings += " +"
+                    Else
+                        settings += " "
+                    End If
+
+                    settings += "(" + dimensions + ")"
+
+                    'Get thumbnail type.
+                    xml_node = FindAttribute(nodeList, "thumbpng")
+                    Dim thumbpng As String = GetInnerXml(xml_node)
+
+                    If thumbpng.Equals("True") Then
+                        settings += " --thumb-png"
+                    End If
+                End If
+
+            End If
+
+            'Place markers at starting positions option.
+            'This option was added in the latest versions.
+            xml_node = FindAttribute(nodeList, "startmarker")
+
+            If GetInnerXml(xml_node).Equals("True") Then
+
+                xml_node = FindAttribute(nodeList, "startmarkertype")
+                Dim markerType As String = GetInnerXml(xml_node)
+
+                Select Case markerType
+                    Case "Squared"
+                        markerType = " -S"
+                    Case "Tiled"
+                        markerType = " -s"
+                    Case "None", "Circled", "Diamond", "Ellipsed", "Starred"
+                        markerType = " --start-pos-" + markerType.ToLower
+                    Case Else
+                        markerType = String.Empty
+                End Select
+
+                xml_node = FindAttribute(nodeList, "startmarkersize")
+                Dim markerSize As String = GetInnerXml(xml_node)
+
+                Select Case markerSize
+                    Case 2, 3, 4, 5, 6
+                        markerSize = " --start-pos-size " + markerSize
+                    Case Else
+                        markerSize = ""
+                End Select
+
+                If Not String.IsNullOrEmpty(markerSize) And Not String.IsNullOrEmpty(markerSize) Then
+                    settings += " --mark-start-pos" + markerType + markerSize
+                End If
+
+            End If
+
+            'Thumbnail injection option.
+            xml_node = FindAttribute(nodeList, "injectthumb")
+
+            If GetInnerXml(xml_node).Equals("True") Then
+
+                'This option is deprecated in newer versions.
+                xml_node = FindAttribute(nodeList, "omitsquarespreview")
+
+                If GetInnerXml(xml_node).Equals("True") Then
+                    settings += " -K"
+                Else
+                    settings += " -k"
+                End If
+
+                'Only the latest versions save the start position marker type option in the XML file.
+                'Version 2.0.8.8713.0 for example, does not.
+                xml_node = FindAttribute(nodeList, "markers")
+                Dim markers As String = GetInnerXml(xml_node)
+
+                Select Case markers
+
+                    Case "SelectedAsAbove"
+
+                        'Inject thumbnail only when marker params are not valid.
+                        If settings.Contains("--mark-start-pos") Then
+                            markers = "selected"
+                        Else
+                            markers = String.Empty
+                        End If
+
+                    Case "None", "Aro", "Bittah"
+                        markers = markers.ToLower
+                    Case Else
+                        markers = String.Empty
+
+                End Select
+
+                If Not String.IsNullOrEmpty(markers) Then
+                    settings += " --preview-markers-" + markers
+                End If
+
+            End If
+
+            'Voxel rendering mode option is apparently not used in the latest versions (v2.4.2.0).
+            'Maybe the renderer itself uses a default option and just doesn't get it from the GUI.
+            '......
+
+            'This was added in the latest versions and I don't know what it does.
+            settings += " --bkp"
+
+        Catch ex As Exception
+            Console.WriteLine(ex.ToString)
+        End Try
 
     End Sub
+
+    Private Function GetInnerXml(xml_node As XmlNode) As String
+
+        If xml_node Is Nothing Then
+            Return String.Empty
+        Else
+            Return xml_node.InnerXml
+        End If
+
+    End Function
+
+    Private Function FindAttribute(nodeList As List(Of XmlNode), ByVal attributeName As String) As XmlNode
+
+        Dim xml_node As XmlNode = nodeList.Find(Function(x) x.Attributes("name").Value.Equals(attributeName))
+
+        If xml_node Is Nothing Then
+            logError("XML attribute """ + attributeName + """ was not found. Maybe it's deprecated in this version.", True)
+        End If
+
+        Return xml_node
+
+    End Function
 
     Private Sub useRendererBox_CheckedChanged(sender As Object, e As EventArgs) Handles useRendererBox.CheckedChanged
 
