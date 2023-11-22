@@ -9,6 +9,7 @@
 'THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 Imports System.Runtime.CompilerServices
+Imports StellarObjectSimulation.StellarObject
 
 Public Class Minimap
 
@@ -138,7 +139,8 @@ Public Class Minimap
 
             minimapGraphics = Graphics.FromImage(minimapImage)
             minimapGraphics.InterpolationMode = Drawing2D.InterpolationMode.HighQualityBicubic
-            minimapGraphics.SmoothingMode = Drawing2D.SmoothingMode.None
+            'minimapGraphics.SmoothingMode = Drawing2D.SmoothingMode.AntiAlias 'Use this when drawing ellipses.
+            minimapGraphics.SmoothingMode = Drawing2D.SmoothingMode.HighSpeed
             minimapGraphics.Clear(Color.Black)
 
             minimapPen = New Pen(Color.Yellow)
@@ -157,14 +159,20 @@ Public Class Minimap
         For Each obj In objList
 
             'Convert size to local size.
-            Dim sizeX As Double = (obj.VisualSize * minimapImage.Width) / universeSizeData(2)
-            Dim sizeY As Double = (obj.VisualSize * minimapImage.Height) / universeSizeData(3)
+            'Dim sizeX As Double = (obj.VisualSize * minimapImage.Width) / universeSizeData(2)
+            'Dim sizeY As Double = (obj.VisualSize * minimapImage.Height) / universeSizeData(3)
+            Dim sizeX As Double
+            Dim sizeY As Double
 
-            'Don't disappear completely.
-            If sizeX < 1 Then
+            'Stars are bigger than planets.
+            If obj.Type = StellarObjectType.Star Then
+                sizeX = 3
+            Else
                 sizeX = 1
             End If
-            If sizeY < 1 Then
+            If obj.Type = StellarObjectType.Star Then
+                sizeY = 3
+            Else
                 sizeY = 1
             End If
 
@@ -178,22 +186,19 @@ Public Class Minimap
             Dim x As Double = (Math.Abs(obj.CenterOfMass.X + universeSizeData(2) / 2) * (minimapImage.Width - 1)) /
                               universeSizeData(2) - sizeX / 2
             Dim y As Double = (Math.Abs(obj.CenterOfMass.Y + universeSizeData(3) / 2) * (minimapImage.Height - 1)) /
-                              universeSizeData(3) - sizeX / 2
+                              universeSizeData(3) - sizeY / 2
 
-            minimapPen.Color = obj.Color
+            minimapPen.Color = obj.PaintColor
 
             'If obj.isStar Then
             '    minimapGraphics.DrawEllipse(minimapPen, New RectangleF(x, y, sizeX, sizeY))
+            '    minimapGraphics.FillEllipse(minimapPen.Brush, New Rectangle(x, y, sizeX, sizeY))
             'Else
-            'Using RectangleF makes the shape miss a few pixels, sometimes.
-            'Because of that, we lose a few pixels in total size due to integer rounding.
-            'An easy, yet hacky, solution is to subtract a fixed value of pixels from the minimap size while doing the calculations.
-            'Dim rects() As RectangleF = {New RectangleF(x, y, sizeX, sizeY)}
-            minimapGraphics.DrawRectangle(minimapPen, New Rectangle(x, y, sizeX, sizeY))
-            minimapGraphics.FillRectangle(minimapPen.Brush, New Rectangle(x, y, sizeX, sizeY))
-
+            '    minimapGraphics.DrawRectangle(minimapPen, New Rectangle(x, y, sizeX, sizeY))
+            '    minimapGraphics.FillRectangle(minimapPen.Brush, New Rectangle(x, y, sizeX, sizeY))
             'End If
-
+            'minimapGraphics.DrawEllipse(minimapPen, New RectangleF(x, y, 1, 1))
+            minimapImage.SetPixel(x, y, obj.PaintColor)
         Next
 
         'Now the minimap camera.
@@ -225,7 +230,6 @@ Public Class Minimap
         Else
             height += 1
         End If
-
 
         minimapPen.Color = Color.White
         minimapGraphics.DrawRectangle(minimapPen, New Rectangle(x, y, width, height))

@@ -11,7 +11,7 @@
 Public Class Map
 
     Private _filename As String
-    Private _fullname As String
+    Private _path As String
     Private _CD As String
     Private _MinPlayers As String
     Private _MaxPlayers As String
@@ -46,8 +46,8 @@ Public Class Map
     Public Function filename() As String
         Return _filename
     End Function
-    Public Function fullname() As String
-        Return _fullname
+    Public Function path() As String
+        Return _path
     End Function
     Public Function CD() As String
         Return _CD
@@ -90,8 +90,8 @@ Public Class Map
     Public Sub filename(ByVal new_filename As String)
         _filename = new_filename
     End Sub
-    Public Sub fullname(ByVal new_fullname As String)
-        _fullname = new_fullname
+    Public Sub path(ByVal new_fullname As String)
+        _path = new_fullname
     End Sub
     Public Sub CD(ByVal new_CD As String)
         _CD = new_CD

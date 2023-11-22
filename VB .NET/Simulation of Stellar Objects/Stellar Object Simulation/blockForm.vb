@@ -10,7 +10,9 @@
 
 Imports System.ComponentModel
 Imports System.Configuration
+Imports System.Runtime.InteropServices
 Imports System.Threading
+Imports StellarObjectSimulation.StellarObject
 
 'FIXED BUG: Bottom right tunneling doesn't create transition for top-left corner. Bottom left does though. Something I missed?
 'The duplicate points are not the center of the ellipse but it's top-left corner. That is because of how the ellipse is drawn.
@@ -127,13 +129,13 @@ Public Class blockForm
     Dim PlanetArrayInUseFlag As Boolean = False
     Dim paintingStars As Boolean = False
     Dim paintingPlanets As Boolean = False
-    Dim applyingstarVelocity As Boolean = False
-    Dim applyingPlanetAcceleration As Boolean = False
 
     'Timers and threads.
     Dim debug_stopwatch As New Stopwatch()
 
     Dim tickValue As Integer
+    Dim tickModeValues() As Integer = {10000000, 100000, 0, -1} 'Fast, Faster, Fastest.
+    Dim tickModeSelectedValue As Integer = -1 'The selected tick mode value.
     Dim updateCounter As Integer = 0
     Dim frameCounter As Integer = 0
     Dim FPS As Integer = 0
@@ -141,7 +143,6 @@ Public Class blockForm
 
     Dim mainThread As New Thread(AddressOf UniverseLive)
     Dim paintThread As New Thread(AddressOf Frame)
-    Dim cycleStart As Boolean = False 'When true, that means we 're ready to draw the image.
 
     '----------------------------------------------------------------------------------------------------------------------
     '----------------------------------------------------------------------------------------------------------------------
@@ -164,6 +165,8 @@ Public Class blockForm
         formDefaultHeight = Me.Height
 
         tickValue = numTimeTick.Value
+        cbCreateType.SelectedItem = cbCreateType.Items(0)
+        cbTickSpeed.SelectedItem = cbTickSpeed.Items(0)
 
         'Init universe/world for the first time.
         InitWorld(False)
@@ -244,13 +247,12 @@ Public Class blockForm
             'Paint universe.
             Frame()
 
-            'Delay. If tick value is zero (0), we must slow it down because it's too damn fast.
-            If tickValue > 0 Then
+            'Tick delay.
+            If tickModeSelectedValue < 0 Then
                 cycles = 0
                 Thread.Sleep(tickValue)
             Else
-                'Wait a few cycles to slow things down. because it's too fast.
-                While cycles < 10000000 'This is normally ~110 FPS on my system.
+                While cycles < tickModeSelectedValue
                     cycles += 1
                 End While
                 cycles = 0
@@ -377,8 +379,22 @@ Public Class blockForm
 
         Dim objList As New List(Of StellarObject)
 
+
         Try
             objList.AddRange(myUniverse.Objects.OrderBy(Function(o) o.CenterOfMass.Z))
+
+            '' Create pen.
+            'Dim blackPen As New Pen(Color.White, 3)
+
+            '' Create rectangle to bound ellipse.
+            'Dim rect As New Rectangle(120, 120, 100, 100)
+
+            '' Create start and sweep angles on ellipse.
+            'Dim startAngle As Single = 0
+            'Dim sweepAngle As Single = 1
+
+            '' Draw arc to screen.
+            'universeGraphics.DrawArc(blackPen, rect, startAngle, sweepAngle)
 
             'Check if we 're hovering above stellar object.
             ObjectUnderMouse(objList)
@@ -405,7 +421,7 @@ Public Class blockForm
                     'Follow object, if said so.
                     FollowObject(followingObject)
 
-                    'Hide label, if said show.
+                    'Hide label, if said so.
                     If hideHoverInfo Then
                         Me.Invoke(New hideHoverLabelDelegate(AddressOf hideHoverLabel))
                     Else
@@ -417,22 +433,25 @@ Public Class blockForm
                 End If
 
                 'Tunneling.
-                If obj.isStar And radCollisionTunnel.Checked And Not dragStart Then
-
-                    Star_CheckForLeftTunneling(obj, obj.CenterOfMass, universeGraphics)   'Left Wall.
-                    Star_CheckForRightTunneling(obj, obj.CenterOfMass, universeGraphics)  'Right Wall.
-                    Star_CheckForTopTunneling(obj, obj.CenterOfMass, universeGraphics)    'Top Wall.
-                    Star_CheckForBottomTunneling(obj, obj.CenterOfMass, universeGraphics) 'Bottom Wall.
-
-                ElseIf radCollisionTunnel.Checked And Not dragStart Then
-
-                    Planet_CheckForLeftTunneling(obj, obj.CenterOfMass, universeGraphics)
-                    Planet_CheckForRightTunneling(obj, obj.CenterOfMass, universeGraphics)
-                    Planet_CheckForTopTunneling(obj, obj.CenterOfMass, universeGraphics)
-                    Planet_CheckForBottomTunneling(obj, obj.CenterOfMass, universeGraphics)
+                If radCollisionTunnel.Checked And Not dragStart Then
+                    If obj.Type = StellarObjectType.Planet Then
+                        Planet_CheckForLeftTunneling(obj, obj.CenterOfMass, universeGraphics)
+                        Planet_CheckForRightTunneling(obj, obj.CenterOfMass, universeGraphics)
+                        Planet_CheckForTopTunneling(obj, obj.CenterOfMass, universeGraphics)
+                        Planet_CheckForBottomTunneling(obj, obj.CenterOfMass, universeGraphics)
+                    ElseIf obj.type = StellarObjectType.Star Then
+                        Star_CheckForLeftTunneling(obj, obj.CenterOfMass, universeGraphics)
+                        Star_CheckForRightTunneling(obj, obj.CenterOfMass, universeGraphics)
+                        Star_CheckForTopTunneling(obj, obj.CenterOfMass, universeGraphics)
+                        Star_CheckForBottomTunneling(obj, obj.CenterOfMass, universeGraphics)
+                    End If
                 End If
 
             Next
+
+            'Gravitational lensing for black holes.
+            'myUniverse.GravityLensEffect(objList)
+            myUniverse.RealGravityLensEffect(objList)
 
         Catch ex As Exception
             Console.WriteLine(ex.ToString)
@@ -561,7 +580,7 @@ Public Class blockForm
         myUniverse.Stars.RemoveRange(0, myUniverse.Stars.Count)
         myUniverse.Planets.RemoveRange(0, myUniverse.Planets.Count)
 
-        radModePlanet.Checked = True
+        chkbNoCreation.Checked = False
         radCollisionTunnel.Checked = True
         radRealTraj.Checked = True
         chkFollowSelected.Checked = False
@@ -612,7 +631,7 @@ Public Class blockForm
                 star.TransitionDirection = star.TransitionDirection + "l"
             End If
 
-            Dim newPen As New Pen(star.Color)
+            Dim newPen As New Pen(star.PaintColor)
 
             'Calculate duplicate origin point.
             Dim duplicatePoint = New PointF(universeWidth - radius + center.X - clipOffsetX, center.Y - radius)
@@ -633,7 +652,7 @@ Public Class blockForm
         'Center of Mass moved. Draw the duplicate ellipse in it's position to preserve the transition.
         If center.X > universeWidth - radius And star.TransitionDirection.Contains("l") Then
 
-            Dim newPen As New Pen(star.Color)
+            Dim newPen As New Pen(star.PaintColor)
 
             'Calculate duplicate origin point.
             Dim duplicatePoint As New PointF(clipOffsetX - radius - universeWidth + center.X, center.Y - radius)
@@ -665,7 +684,7 @@ Public Class blockForm
                 star.TransitionDirection = star.TransitionDirection + "r"
             End If
 
-            Dim newPen As New Pen(star.Color)
+            Dim newPen As New Pen(star.PaintColor)
 
             'Calculate duplicate origin point.
             Dim duplicatePoint = New PointF(clipOffsetX - radius + center.X - universeWidth, center.Y - radius)
@@ -685,7 +704,7 @@ Public Class blockForm
         'Center of Mass moved. Draw the duplicate ellipse in it's position to preserve the transition.
         If center.X < clipOffsetX + radius And star.TransitionDirection.Contains("r") Then
 
-            Dim newPen As New Pen(star.Color)
+            Dim newPen As New Pen(star.PaintColor)
 
             'Calculate duplicate origin point.
             Dim duplicatePoint As New PointF(universeWidth - radius - clipOffsetX + center.X, center.Y - radius)
@@ -718,7 +737,7 @@ Public Class blockForm
                 star.TransitionDirection = star.TransitionDirection + "t"
             End If
 
-            Dim newPen As New Pen(star.Color)
+            Dim newPen As New Pen(star.PaintColor)
 
             'Calculate duplicate origin point.
             Dim duplicatePoint = New Point(center.X - radius, universeHeight + center.Y - clipOffsetY - radius)
@@ -760,7 +779,7 @@ Public Class blockForm
         'Center of Mass moved. Draw the duplicate ellipse in it's position to preserve the transition.
         If center.Y > universeHeight - radius And star.TransitionDirection.Contains("t") Then
 
-            Dim newPen As New Pen(star.Color)
+            Dim newPen As New Pen(star.PaintColor)
 
             'Calculate duplicate origin point.
             Dim duplicatePoint = New Point(center.X - radius, center.Y - universeHeight + clipOffsetY - radius)
@@ -813,7 +832,7 @@ Public Class blockForm
                 star.TransitionDirection = star.TransitionDirection + "b"
             End If
 
-            Dim newPen As New Pen(star.Color)
+            Dim newPen As New Pen(star.PaintColor)
 
             'Calculate duplicate origin point.
             Dim duplicatePoint = New PointF(center.X - radius, clipOffsetY - radius + center.Y - universeHeight)
@@ -855,7 +874,7 @@ Public Class blockForm
         'Center of Mass moved. Draw the duplicate ellipse in it's position to preserve the transition.
         If center.Y < clipOffsetY + radius And star.TransitionDirection.Contains("b") Then
 
-            Dim newPen As New Pen(star.Color)
+            Dim newPen As New Pen(star.PaintColor)
 
             'Calculate duplicate origin point.
             Dim duplicatePoint = New PointF(center.X - radius, universeHeight - radius + center.Y - clipOffsetY)
@@ -1155,11 +1174,11 @@ Public Class blockForm
     '----------------------------------------------------------------------------------------------------------------------
     '----------------------------------------------------------------------------------------------------------------------
 
-    Private Sub createstar(ByVal data() As Object)
+    Private Sub CreateStar(ByVal data() As Object)
 
         Dim newstar As New Star
 
-        While applyingstarVelocity Or paintingStars Or StarArrayInUseFlag 'Wait until star list is free.
+        While paintingStars Or StarArrayInUseFlag 'Wait until star list is free.
 
         End While
 
@@ -1175,6 +1194,7 @@ Public Class blockForm
 
         'Set new random color.
         myBrush = New SolidBrush(Color.FromArgb(rand.Next(0, 255), rand.Next(0, 255), rand.Next(0, 255)))
+        'myBrush = New SolidBrush(Color.FromArgb(220, 253, 219))
 
         'Initialize and add new star to the universe.
         newstar.Init(myUniverse, myUniverseMatrix, data(0), starRadius, solarMass, starBorderWidth, myBrush.Color, data(1))
@@ -1204,11 +1224,11 @@ Public Class blockForm
         Thread.CurrentThread.Abort()
 
     End Sub
-    Private Sub createplanet(ByVal data() As Object)
+    Private Sub CreatePlanet(ByVal data() As Object)
 
         Dim newplanet As New Planet
 
-        While applyingPlanetAcceleration Or paintingPlanets Or PlanetArrayInUseFlag  'Wait until planet list is free.
+        While paintingPlanets Or PlanetArrayInUseFlag  'Wait until planet list is free.
 
         End While
 
@@ -1247,7 +1267,49 @@ Public Class blockForm
         Thread.CurrentThread.Abort()
 
     End Sub
+    Private Sub CreateBlackHole(ByVal data() As Object)
 
+        Dim newBlackHole As New Singularity
+
+        While paintingStars Or StarArrayInUseFlag  'Wait until painting is done.
+
+        End While
+
+        StarArrayInUseFlag = True
+
+        Dim starMass As Double
+
+        If data.Count < 3 Then
+            starMass = starSolarMass
+        Else
+            starMass = data(2)
+        End If
+
+        'Initialize and add new planet to planet World.
+        newBlackHole.Init(myUniverse, myUniverseMatrix, data(0), starRadius, starMass, data(1))
+        newBlackHole.CosmosSection = currentCosmosSection
+
+        myUniverse.AddBlackHole(newBlackHole)
+        AddListItem(newBlackHole, myUniverse.Objects)
+
+        StarArrayInUseFlag = False
+
+        'While not merged. Calculate acceleration from stars.
+        'While (Not newplanet.ismerged)
+
+        '    newplanet.applyAcceleration(myUniverse.getStars, myUniverse.getplanets, myUniverse.getGravityConstant)
+        '    If bounceMode.Checked Then
+        '        newplanet.CheckForBounce()
+        '    End If
+
+        '    Thread.Sleep(universeTick.Value)
+        'End While
+
+        'If it's merged remove thread from list and terminate.
+        threadList.Remove(Thread.CurrentThread)
+        Thread.CurrentThread.Abort()
+
+    End Sub
     '----------------------------------------------------------------------------------------------------------------------
     '----------------------------------------------------------------------------------------------------------------------
     'Timer events.
@@ -1286,7 +1348,7 @@ Public Class blockForm
     Private Sub UpdateLabels()
 
         Dim objList As New List(Of StellarObject)
-        objList.AddRange(myUniverse.Objects)
+        objList.AddRange(myUniverse.Objects.FindAll(Function(o) o.CosmosSection = currentCosmosSection))
 
         If objList.Count > 0 Then
 
@@ -1295,10 +1357,7 @@ Public Class blockForm
             For Each item In objectListView.Items
 
                 'Get stellar object of list item.
-                Dim obj As StellarObject = objList.Find(Function(o)
-                                                            Return o.ListItem.Equals(item)
-
-                                                        End Function)
+                Dim obj As StellarObject = objList.Find(Function(o) o.ListItem.Equals(item))
 
                 'If stellar object is not found, that means it got merged. Remove item from list later.
                 If obj Is Nothing Then
@@ -1307,11 +1366,6 @@ Public Class blockForm
                 End If
 
                 UpdateListItem(obj, item)
-
-                'This updates our local var to the new selected object, if the previous one merged.
-                If obj.IsSelected Then
-                    selectedObject = obj
-                End If
 
             Next
 
@@ -1345,29 +1399,23 @@ Public Class blockForm
         Else
 
             Dim objectItem As ListViewItem = obj.ListItem
-            Dim brightness As Single = obj.ListItem.ForeColor.GetBrightness
-            objectItem.ForeColor = obj.ListItem.ForeColor
+            Dim brightness As Single = obj.ListItem.BackColor.GetBrightness
+            objectItem.BackColor = obj.ListItem.BackColor
 
-            If brightness > 0.4 Then
-                objectItem.BackColor = Color.Black
+            If brightness > 0.4 AndAlso Not obj.Type.Equals(StellarObjectType.BlackHole) Then
+                objectItem.ForeColor = Color.Black
             Else
-                objectItem.BackColor = Color.White
+                objectItem.ForeColor = Color.White
             End If
 
             'Get group to assign the object to.
             Dim group As String
             Dim name As String
 
-            If obj.isStar Then
-                group = "Stars"
-                name = "Star"
-            ElseIf obj.isPlanet Then
-                group = "Planets"
-                name = "Planet"
-            Else
-                group = "Default"
-                name = ""
-            End If
+            group = obj.Type.ToString + "s"
+            name = obj.Type.ToString
+            'group = "Default"
+            'name = ""
 
             'Get index of item.
             Dim index As Integer = objectListView.Groups(group).Items.Count
@@ -1447,20 +1495,18 @@ Public Class blockForm
                 objectItem.Text = objectItem.Text.Remove(objectItem.Text.IndexOf(" (s)"), 4)
             End If
 
-            If obj.isStar Then
-                objSize = obj.Radius.ToString
-            ElseIf obj.isPlanet Then
+            If obj.Type = StellarObjectType.Planet Then
                 objSize = obj.Size.ToString
             Else
                 objSize = obj.Radius.ToString
             End If
 
-            Dim brightness As Single = obj.ListItem.ForeColor.GetBrightness
+            Dim brightness As Single = obj.ListItem.BackColor.GetBrightness
 
-            If brightness > 0.4 Then
-                objectItem.BackColor = Color.Black
+            If brightness > 0.4 AndAlso Not obj.Type.Equals(StellarObjectType.BlackHole) Then
+                objectItem.ForeColor = Color.Black
             Else
-                objectItem.BackColor = Color.White
+                objectItem.ForeColor = Color.White
             End If
 
             'Update stats.
@@ -1561,6 +1607,13 @@ Public Class blockForm
                 'Make sure these have "CausesValidation = False" to avoid image flickering when moving the mouse.
                 lblCoordsMouse.Text = mousePoint.ToString
                 lblCoordsAbs.Text = absoluteMousePoint.ToString
+
+                Dim bh As Singularity = myUniverse.Objects.FindLast(Function(x) x.Type = StellarObjectType.BlackHole)
+                If bh IsNot Nothing Then
+                    Dim newCOM As New PointFD(mousePoint.X, mousePoint.Y, bh.CenterOfMass.Z)
+                    bh.CenterOfMass = newCOM
+                End If
+
             End If
 
             If Not isSelecting Then
@@ -1592,8 +1645,16 @@ Public Class blockForm
 
         'Enable dragging on minimap.
         If mouseIsDown And picMinimap.ClientRectangle.Contains(e.Location) Then
+
+            If UniversePaused = False Then
+                UniversePaused = True
+                UniversePausedForDragging = True
+            End If
+
             minimapDragging = True
             picMinimap_Click(sender, e)
+
+
         End If
 
     End Sub
@@ -1635,15 +1696,36 @@ Public Class blockForm
             End If
 
             'If star size exceeds boundaries.
-            If mousePoint.X + VisualSize / 2 + planetBorderWidth / 2 > universeWidth Or
-                mousePoint.Y + VisualSize / 2 + planetBorderWidth / 2 > universeHeight Or
-                mousePoint.X - VisualSize / 2 - planetBorderWidth / 2 < clipOffsetX Or
-                mousePoint.Y - VisualSize / 2 - planetBorderWidth / 2 < clipOffsetY Then
+            If mousePoint.X + VisualSize / 2 + starBorderWidth / 2 > universeWidth Or
+                mousePoint.Y + VisualSize / 2 + starBorderWidth / 2 > universeHeight Or
+                mousePoint.X - VisualSize / 2 - starBorderWidth / 2 < clipOffsetX Or
+                mousePoint.Y - VisualSize / 2 - starBorderWidth / 2 < clipOffsetY Then
 
                 Exit Sub
             End If
 
             threadList.Add(New Thread(AddressOf createstar)) 'Each star is handled by a different thread.
+            threadList.Last.Start(New Object() {New PointFD(mousePoint.X, mousePoint.Y, zAxisMultiplier * numParamZPos.Value),
+                                  New PointFD(numParamXVel.Value, numParamYVel.Value, numParamZVel.Value), numParamMass.Value}) 'Start thread.
+
+        ElseIf creationMode.Equals("b") And Not hover Then
+
+            'Make sure this code is updated from the star class.
+            Dim VisualSize As Double = starRadius + (zAxisMultiplier * numParamZPos.Value) / starRadius
+            If VisualSize < 4 Then
+                VisualSize = 4
+            End If
+
+            'If star size exceeds boundaries.
+            If mousePoint.X + VisualSize / 2 > universeWidth Or
+                mousePoint.Y + VisualSize / 2 > universeHeight Or
+                mousePoint.X - VisualSize / 2 < clipOffsetX Or
+                mousePoint.Y - VisualSize / 2 < clipOffsetY Then
+
+                Exit Sub
+            End If
+
+            threadList.Add(New Thread(AddressOf CreateBlackHole)) 'Each star is handled by a different thread.
             threadList.Last.Start(New Object() {New PointFD(mousePoint.X, mousePoint.Y, zAxisMultiplier * numParamZPos.Value),
                                   New PointFD(numParamXVel.Value, numParamYVel.Value, numParamZVel.Value), numParamMass.Value}) 'Start thread.
 
@@ -1740,6 +1822,11 @@ Public Class blockForm
 
         mouseIsDown = False
         minimapDragging = False
+
+        If UniversePausedForDragging = True Then
+            UniversePaused = False
+            UniversePausedForDragging = False
+        End If
 
     End Sub
     Private Sub blockForm_KeyDown(sender As Object, e As KeyEventArgs) Handles Me.KeyDown
@@ -1870,8 +1957,40 @@ Public Class blockForm
 
         For Each obj In objList
 
-            If obj.isStar Then
+            If obj.Type = StellarObjectType.Planet Then
 
+                Dim planet As Planet = CType(obj, Planet) 'Cast object as planet.
+
+                Dim borderWidth As Double
+                If zoomValue > 1 Then
+                    borderWidth = planet.GetBorderWidth / zoomValue
+                ElseIf zoomValue < 1 Then
+                    borderWidth = planet.GetBorderWidth * zoomValue
+                End If
+
+                Dim rec As New RectangleF(New PointF(planet.Vertices(0).X - borderWidth, planet.Vertices(0).Y - borderWidth),
+                                          New SizeF(obj.VisualSize + 2 * borderWidth,
+                                                    obj.VisualSize + 2 * borderWidth))
+
+                'Check if we' re selecting.
+                If isSelecting And Not mouseIsDown And Not selectionRectangle.Location.IsEmpty Then
+
+                    'Select object if it's inside the selection rectangle.
+                    If realSelectionRectangle.IntersectsWith(rec) Then
+                        SelectObject(objList.Item(objList.IndexOf(obj)))
+                        Exit For
+                    End If
+
+                End If
+
+                'Check if cursor is inside the rectangle.
+                If rec.Contains(mousePoint) Then
+                    hoverObject = objList.Item(objList.IndexOf(obj)) 'Get reference to original item not the local copy.
+                    hover = True 'Set flag.
+                    Exit For
+                End If
+
+            Else
                 Dim borderWidth As Double
                 If zoomValue > 1 Then
                     borderWidth = starBorderWidth / zoomValue
@@ -1903,39 +2022,6 @@ Public Class blockForm
                     hover = True 'Set flag.
                     Exit For
 
-                End If
-
-            ElseIf obj.isPlanet Then
-
-                Dim planet As Planet = CType(obj, Planet) 'Cast object as planet.
-
-                Dim borderWidth As Double
-                If zoomValue > 1 Then
-                    borderWidth = planet.GetBorderWidth / zoomValue
-                ElseIf zoomValue < 1 Then
-                    borderWidth = planet.GetBorderWidth * zoomValue
-                End If
-
-                Dim rec As New RectangleF(New PointF(planet.Vertices(0).X - borderWidth, planet.Vertices(0).Y - borderWidth),
-                                          New SizeF(obj.VisualSize + 2 * borderWidth,
-                                                    obj.VisualSize + 2 * borderWidth))
-
-                'Check if we' re selecting.
-                If isSelecting And Not mouseIsDown And Not selectionRectangle.Location.IsEmpty Then
-
-                    'Select object if it's inside the selection rectangle.
-                    If realSelectionRectangle.IntersectsWith(rec) Then
-                        SelectObject(objList.Item(objList.IndexOf(obj)))
-                        Exit For
-                    End If
-
-                End If
-
-                'Check if cursor is inside the rectangle.
-                If rec.Contains(mousePoint) Then
-                    hoverObject = objList.Item(objList.IndexOf(obj)) 'Get reference to original item not the local copy.
-                    hover = True 'Set flag.
-                    Exit For
                 End If
 
             End If
@@ -2073,13 +2159,13 @@ Public Class blockForm
             Dim emptySpace As Double = visualSize - visualSize / Math.Sqrt(2) 'R - R/sqrt(2)
 
             'Position label next to the object.
-            If obj.isStar Then
-                objTopRight = {New PointF(obj.CenterOfMass.X + visualSize - emptySpace + obj.BorderWidth / 2,
-                                          obj.CenterOfMass.Y - visualSize + emptySpace - obj.BorderWidth / 2)}
-            Else
+            If obj.Type = StellarObjectType.Planet Then
                 visualSize = obj.VisualSize / 2
                 objTopRight = {New PointF(obj.CenterOfMass.X + visualSize + obj.BorderWidth / 2,
                                           obj.CenterOfMass.Y - visualSize - obj.BorderWidth / 2)}
+            Else
+                objTopRight = {New PointF(obj.CenterOfMass.X + visualSize - emptySpace + obj.BorderWidth / 2,
+                                          obj.CenterOfMass.Y - visualSize + emptySpace - obj.BorderWidth / 2)}
             End If
 
             Dim selectionDist As Double = 0 'Extra distance added because of the selection shape.
@@ -2145,7 +2231,7 @@ Public Class blockForm
             sign = -1
 
             myInverseUniverseMatrix.TransformPoints(objTopRight)
-            If obj.isStar Then
+            If obj.Type = StellarObjectType.Star Then
                 objTopRight(0).X -= 2 * (visualSize - emptySpace + selectionDist)
             Else
                 objTopRight(0).X -= 2 * (visualSize + selectionDist) + obj.BorderWidth
@@ -2170,7 +2256,7 @@ Public Class blockForm
                     objTopRight(0).Y = defaultUniverseHeight
                 Else
 
-                    If obj.isStar Then
+                    If obj.Type = StellarObjectType.Star Then
 
                         'Move label.
                         objTopRight(0).X += clipDist * sign
@@ -2206,7 +2292,7 @@ Public Class blockForm
                     objTopRight(0).Y = defaultUniverseHeight
                 Else
 
-                    If obj.isStar Then
+                    If obj.Type = StellarObjectType.Star Then
 
                         'Move label.
                         objTopRight(0).X += clipDist
@@ -2232,7 +2318,7 @@ Public Class blockForm
 
         ElseIf objTopRight(0).Y > defaultUniverseHeight Then 'We got a bottom overflow. Start rolling.
 
-            If obj.isStar Then
+            If obj.Type = StellarObjectType.Star Then
 
                 clipDist = objTopRight(0).Y - defaultUniverseHeight
 
@@ -2282,7 +2368,7 @@ Public Class blockForm
                 objTopRight(0).Y = defaultUniverseHeight
             Else
 
-                If obj.isStar Then
+                If obj.Type = StellarObjectType.Star Then
 
                     clipDist = defaultClipOffset - objTopRight(0).X
 
@@ -2321,7 +2407,7 @@ Public Class blockForm
 
         ElseIf objTopRight(0).Y > defaultUniverseHeight Then 'We got a bottom overflow. Start rolling.
 
-            If obj.isStar Then
+            If obj.Type = StellarObjectType.Star Then
 
                 clipDist = objTopRight(0).Y - defaultUniverseHeight
 
@@ -2376,18 +2462,18 @@ Public Class blockForm
         If objTopRight(0).Y - hoverLabel.Height < defaultClipOffset Then
 
             Dim clipDist As Double 'How much we need to move the label?
-            Dim wallType As Double 'Which wall (top/bottom) we need to stick to?
+            'Dim wallType As Double 'Which wall (top/bottom) we need to stick to?
 
-            wallType = defaultClipOffset
-            clipDist = wallType - (objTopRight(0).Y - hoverLabel.Height)
-            wallType += hoverLabel.Height
+            'wallType = defaultClipOffset
+            'clipDist = wallType - (objTopRight(0).Y - hoverLabel.Height)
+            'wallType += hoverLabel.Height
 
             'Move to bottom side.
             objTopRight(0).Y += hoverLabel.Height
 
             'There is a lot of point transformations but I can't help it.
             myInverseUniverseMatrix.TransformPoints(objTopRight)
-            If obj.isStar Then
+            If obj.Type = StellarObjectType.Star Then
                 objTopRight(0).Y += 2 * (visualSize - emptySpace + selectionDist)
             Else
                 objTopRight(0).Y += 2 * (visualSize + selectionDist) + obj.BorderWidth
@@ -2628,26 +2714,20 @@ Public Class blockForm
     '----------------------------------------------------------------------------------------------------------------------
     '----------------------------------------------------------------------------------------------------------------------
 
-    Private Sub radModePlanet_CheckedChanged(sender As Object, e As EventArgs) Handles radModePlanet.CheckedChanged
+    Private Sub cbCreateType_SelectedIndexChanged(sender As Object, e As EventArgs) Handles cbCreateType.SelectedIndexChanged
 
-        If radModePlanet.Checked Then
-            creationMode = "p"
-        End If
+        creationMode = cbCreateType.SelectedItem.ToString.ToLower.Chars(0)
 
     End Sub
-    Private Sub radModeStar_CheckedChanged(sender As Object, e As EventArgs) Handles radModeStar.CheckedChanged
 
-        If radModeStar.Checked Then
-            creationMode = "s"
-        End If
-
-    End Sub
-    Private Sub radModeNothing_CheckedChanged(sender As Object, e As EventArgs) Handles radModeNothing.CheckedChanged
-
-        If radModeNothing.Checked Then
+    Private Sub chkbNoCreation_CheckedChanged(sender As Object, e As EventArgs) Handles chkbNoCreation.CheckedChanged
+        If chkbNoCreation.Checked Then
             creationMode = ""
+            cbCreateType.Enabled = False
+        Else
+            cbCreateType.Enabled = True
+        creationMode = cbCreateType.SelectedItem.ToString.ToLower.Chars(0)
         End If
-
     End Sub
 
     Private Sub radCollisionBounce_CheckedChanged(sender As Object, e As EventArgs) Handles radCollisionBounce.CheckedChanged
@@ -2800,7 +2880,7 @@ Public Class blockForm
         For Each obj In myUniverse.Objects
 
             Dim size As New Integer
-            If obj.isStar Then
+            If obj.Type = StellarObjectType.Star Then
                 size = obj.Radius
             Else
                 size = obj.Size
@@ -2810,10 +2890,10 @@ Public Class blockForm
 
             'Convert and merge object binary data to one array.
             universeData.AddRange(
-                BitConverter.GetBytes(obj.isStar).Concat(
+                BitConverter.GetBytes(obj.Type).Concat(
                 BitConverter.GetBytes(obj.Mass).Concat(
                 BitConverter.GetBytes(size).Concat(
-                BitConverter.GetBytes(obj.Color.ToArgb).Concat(
+                BitConverter.GetBytes(obj.PaintColor.ToArgb).Concat(
                 BitConverter.GetBytes(obj.CenterOfMass.X).Concat(
                 BitConverter.GetBytes(obj.CenterOfMass.Y).Concat(
                 BitConverter.GetBytes(obj.CenterOfMass.Z).Concat(
@@ -3008,12 +3088,12 @@ Public Class blockForm
 
             Dim tempObj As New StellarObject
 
-            'Is it a star?
+            'Get stellar object type (star, planet, ...).
             binFile.Read(byteArray, 0, 1)
-            Dim isStar = BitConverter.ToBoolean(byteArray, 0)
+            Dim objType As StellarObjectType = byteArray(0)
 
             'Convert it to the appropriate type.
-            If isStar Then
+            If objType = StellarObjectType.Star Then
                 tempObj = New Star
             Else
                 tempObj = New Planet
@@ -3023,13 +3103,13 @@ Public Class blockForm
             binFile.Read(byteArray, 0, 8)
             tempObj.Mass = BitConverter.ToDouble(byteArray, 0)
             binFile.Read(byteArray, 0, 4)
-            If isStar Then
-                tempObj.Radius = BitConverter.ToUInt32(byteArray, 0)
-            Else
+            If objType = StellarObjectType.Planet Then
                 tempObj.Size = BitConverter.ToUInt32(byteArray, 0)
+            Else
+                tempObj.Radius = BitConverter.ToUInt32(byteArray, 0)
             End If
             binFile.Read(byteArray, 0, 4)
-            tempObj.Color = Color.FromArgb(BitConverter.ToInt32(byteArray, 0))
+            tempObj.PaintColor = Color.FromArgb(BitConverter.ToInt32(byteArray, 0))
 
             Dim center As New PointFD
 
@@ -3062,15 +3142,15 @@ Public Class blockForm
             Dim mass As Double = tempObj.Mass 'Use this to restore the original mass after initialization.
 
             'Initialize and add new stellar object to the universe.
-            If isStar Then
+            If objType = StellarObjectType.Star Then
                 CType(tempObj, Star).Init(myUniverse, myUniverseMatrix, center, tempObj.Radius, tempObj.Mass,
-                         starBorderWidth, tempObj.Color, Nothing, New PointFD(tempObj.VelX, tempObj.VelY))
+                         starBorderWidth, tempObj.PaintColor, Nothing, New PointFD(tempObj.VelX, tempObj.VelY))
 
                 tempObj.Mass = mass
                 myUniverse.AddStar(tempObj)
             Else
                 CType(tempObj, Planet).Init(myUniverse, myUniverseMatrix, center, tempObj.Size, tempObj.Mass,
-                         planetBorderWidth, tempObj.Color, Nothing, New PointFD(tempObj.VelX, tempObj.VelY))
+                         planetBorderWidth, tempObj.PaintColor, Nothing, New PointFD(tempObj.VelX, tempObj.VelY))
 
                 tempObj.Mass = mass
                 myUniverse.AddPlanet(tempObj)
@@ -3132,7 +3212,7 @@ Public Class blockForm
 
         If isSelecting Then
             btnSelectTool.FlatAppearance.BorderColor = Color.Red
-            radModeNothing.Checked = True
+            chkbNoCreation.Checked = True
         Else
             btnSelectTool.FlatAppearance.BorderColor = Color.Fuchsia
         End If
@@ -3468,6 +3548,10 @@ Public Class blockForm
             For Each obj In myUniverse.Objects.FindAll(Function(o) o.CosmosSection = newCosmosSection)
                 objectListView.Items.Add(obj.ListItem)
             Next
+
+            'Hide hover label if it was visible before.
+            hoverLabel.Visible = False
+
         End If
 
         btnNavReturn.Visible = True
@@ -3476,6 +3560,28 @@ Public Class blockForm
         Me.Controls.Find("btnSection" + currentCosmosSection.ToString, True).First.BackColor = Color.Red
 
     End Sub
+
+    Private Sub cbTickSpeed_SelectedIndexChanged(sender As Object, e As EventArgs) Handles cbTickSpeed.SelectedIndexChanged
+
+        Dim modes(4) As Object
+        cbTickSpeed.Items.CopyTo(modes, 0)
+
+        numTimeTick.Enabled = False
+
+        If cbTickSpeed.SelectedItem = modes.ToList.Find(Function(x) x.ToString = "Fast") Then
+            tickModeSelectedValue = tickModeValues(0)
+        ElseIf cbTickSpeed.SelectedItem = modes.ToList.Find(Function(x) x.ToString = "Faster") Then
+            tickModeSelectedValue = tickModeValues(1)
+        ElseIf cbTickSpeed.SelectedItem = modes.ToList.Find(Function(x) x.ToString = "Fastest") Then
+            tickModeSelectedValue = tickModeValues(2)
+        ElseIf cbTickSpeed.SelectedItem = modes.ToList.Find(Function(x) x.ToString = "Custom") Then
+            numTimeTick.Enabled = True
+            tickModeSelectedValue = tickModeValues(3)
+        End If
+
+    End Sub
+
+
 End Class
 
 

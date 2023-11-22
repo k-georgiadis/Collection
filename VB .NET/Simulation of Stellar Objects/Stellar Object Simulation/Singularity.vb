@@ -9,8 +9,9 @@
 'THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 Imports System.Drawing.Drawing2D
+Imports System.Windows
 
-Public Class Star
+Public Class Singularity
     Inherits StellarObject
 
     ' Allow friend access to the empty constructor.
@@ -19,7 +20,6 @@ Public Class Star
     End Sub
     Friend Sub Init(ByVal sUniverse As Universe, ByVal pUniverseMatrix As Drawing2D.Matrix,
                     ByVal sLocation As PointFD, ByVal sRadius As Double, ByVal starMass As Double,
-                    ByVal sBorderWidth As Integer, ByVal sColor As Color,
                     ByVal sVelInit As PointFD, Optional ByVal sVel As PointFD = Nothing)
 
         Universe = sUniverse
@@ -32,28 +32,28 @@ Public Class Star
         UniverseOffsetX = Universe.OffsetX
         UniverseOffsetY = Universe.OffsetY
 
-        Type = StellarObjectType.Star
+        Type = StellarObjectType.BlackHole
         CenterOfMass = sLocation
-        Radius = sRadius
-        VisualSize = sRadius + CenterOfMass.Z / sRadius
+
+        'Minimum mass for black holes.
+        If starMass < 2.16 Then
+            starMass = 2.16
+        End If
+
+        'Init object mass.
+        Mass = Universe.SolarMass * starMass '* sType
+
+        'Schwarzschild radius.
+        Radius = 2 * Universe.getGravityConstant * Mass / (Universe.getC * Universe.getC) 'Rs = 2GM/c^2
+        Radius /= 1000 'We need to downsize a bit.
+        VisualSize = Radius + CenterOfMass.Z / Radius
 
         'Set minimum size as to not disappear entirely.
         If VisualSize < 4 Then
             VisualSize = 4
         End If
 
-        BorderWidth = sBorderWidth
-        PaintColor = sColor
-        GlowColor = sColor
-
-        'Init object mass.
-        Mass = Universe.SolarMass * starMass '0.075 * M '* sType
-        'If Universe.isRealistic Then
-        '    Mass = M * sSolarMass '0.075 * M '* sType
-        'Else
-        '    Mass = 0.075 * 19890000000.0 * sSolarMass
-        'End If
-
+        PaintColor = Color.Black 'Init object color.
         TransitionDirection = "" 'Init transition direction. No direction.
 
         'Init duplicate points.
@@ -101,9 +101,9 @@ Public Class Star
         VelY = sVel.Y
         VelZ = sVel.Z
 
-        IsSelected = False
-        IsMerged = False
-        IsMerging = False
+        IsSelected = False 'Init selection flag.
+        IsMerged = False 'Init state of object.
+        IsMerging = False 'Init merging status flag.
 
     End Sub
 
@@ -112,12 +112,6 @@ Public Class Star
     'End Sub
 
     Friend Overrides Sub Move(ByVal stepCount As Integer, ByVal Direction As String, Optional ByVal dX As Double = 0, Optional ByVal dY As Double = 0, Optional ByVal dZ As Double = 0)
-
-        'Calculate angular diameter.
-        'θ = 206265 (57.3 for degrees) * (Actual diameter / Distance)
-        'arc length = s = Rθ
-        'Dim ad As Double = Radius * 57.3 * (2 * Radius / d)
-        'Dim distZ0 As Double = Radius * 57.3 * (2 * Radius / ad)
 
         'Update visual size.
         VisualSize = Radius + CenterOfMass.Z / Radius
@@ -149,42 +143,10 @@ Public Class Star
     End Sub
     Friend Overrides Sub CheckForBounce()
 
-        'Dim delta As Integer = 0
-
-        'Bouncing (Left, Right & Top, Bottom).
         If Not isFullyVisibleX() Then
-
-            'Change X direction.
-            VelX = -VelX 'Opposite direction.
-
-            'Bounce back when velocity is not zero.
-            'If VelY <> 0 Then
-            '    delta = 1
-            'End If
-
-            'If CenterOfMass.X < UniverseOffsetX + VisualSize + BorderWidth / 2 Then
-            '    Move(0, "", UniverseOffsetX + VisualSize + BorderWidth / 2 + delta, CenterOfMass.Y, CenterOfMass.Z)
-            'Else
-            '    Move(0, "", Universe.getWidth - VisualSize - BorderWidth / 2 - delta, CenterOfMass.Y, CenterOfMass.Z)
-            'End If
-
+            VelX = -VelX
         ElseIf Not isFullyVisibleY() Then
-
-            'Change Y direction.
-            VelY = -VelY 'Opposite direction.
-
-            'Bounce back when velocity is not zero.
-            'If VelY <> 0 Then
-            '    delta = 1
-            'End If
-
-            'If CenterOfMass.Y < UniverseOffsetY + VisualSize + BorderWidth / 2 Then
-            '    Move(0, "", CenterOfMass.X, UniverseOffsetY + VisualSize + BorderWidth / 2 + delta, CenterOfMass.Z)
-            'Else
-            '    Move(0, "", CenterOfMass.X, Universe.getHeight - VisualSize - BorderWidth / 2 - delta, CenterOfMass.Z)
-            'End If
-
-            'Console.Write("im going places" + Math.Sign(planetVelY).ToString + planetCenterOfMass.ToString + vbNewLine)
+            VelY = -VelY
         End If
 
     End Sub
@@ -195,52 +157,25 @@ Public Class Star
         Dim tempColor As Color = Universe.getPen.Color
         Dim tempWidth As Integer = starPen.Width
 
-        starPen.Color = PaintColor 'Get color of star.
-        starPen.Width = BorderWidth 'Get star border width.
+        starPen.Color = Color.Black
+        starPen.Width = BorderWidth
 
         Dim newCenterOfMass As New PointF(CenterOfMass.X, CenterOfMass.Y)
-
-        'Create glow effect for the star.
-        If Not PaintColor.Equals(Color.White) Then
-            GlowEffect()
-            starPen.Color = GlowColor
-        End If
-
-        ' Create a path and add a rectangle.
-        Dim myPath As New GraphicsPath
-        Dim srcRect As New RectangleF(100, 200, 200, 200)
-        myPath.AddRectangle(srcRect)
-        myPath.AddEllipse(srcRect)
-
-        Static warpValue As Double = 0
-
-        Dim point1 As New PointF(srcRect.X + srcRect.Width / 2, srcRect.Y)
-        Dim point2 As New PointF(srcRect.X + srcRect.Width - warpValue, srcRect.Y + srcRect.Height / 2)
-        Dim point3 As New PointF(srcRect.X + srcRect.Width / 2, srcRect.Y + srcRect.Height)
-        Dim point4 As New PointF(srcRect.X, srcRect.Y + srcRect.Height / 2)
-        If warpValue >= srcRect.Width / 2 Then
-            warpValue = srcRect.Width / 2
-        Else
-            warpValue += 0.1
-        End If
-        ' Create a destination for the warped curve.
-        Dim curvePoints As PointF() = {point1, point2, point3, point4}
-        universeGraphics.DrawClosedCurve(New Pen(Color.Red), curvePoints, 0.8275, FillMode.Alternate)
-
-        ' Draw the source path (rectangle)to the screen.
-        universeGraphics.DrawPath(Pens.White, myPath)
-
 
         'Paint ellipse.
         universeGraphics.DrawEllipse(starPen,
                                      newCenterOfMass.X - CType(VisualSize, Single),
                                      newCenterOfMass.Y - CType(VisualSize, Single),
-                                     2 * CType(VisualSize, Single), 2 * CType(VisualSize, Single))
-        'Fill star.
+                                     2 * CType(VisualSize, Single),
+                                     2 * CType(VisualSize, Single))
+
+        'Fill ellipse with black.
         universeGraphics.FillEllipse(starPen.Brush,
                                      newCenterOfMass.X - CType(VisualSize, Single),
                                      newCenterOfMass.Y - CType(VisualSize, Single),
-                                     2 * CType(VisualSize, Single), 2 * CType(VisualSize, Single))
+                                     2 * CType(VisualSize, Single),
+                                     2 * CType(VisualSize, Single))
+
         starPen.Color = tempColor
         starPen.Width = tempWidth
 
@@ -251,8 +186,8 @@ Public Class Star
         Dim tempColor As Color = Universe.getPen.Color
         Dim tempWidth As Integer = starPen.Width
 
-        starPen.Color = PaintColor 'Set color of star.
-        starPen.Width = BorderWidth 'Set star border width.
+        starPen.Color = PaintColor
+        starPen.Width = BorderWidth
 
         Dim newCenterOfMass As New PointF(CenterOfMass.X, CenterOfMass.Y)
 
@@ -274,74 +209,6 @@ Public Class Star
 
         starPen.Color = tempColor
         starPen.Width = tempWidth
-
-    End Sub
-
-    Private Sub GlowEffect()
-
-        Static glowStatus As Integer = 1 '1 = glow, -1 = darken
-        Static offset() As Integer = {0, 0, 0}
-        Dim offsetIndex As Integer = -1
-
-        'Select available channel.
-        If offset(1) = 0 AndAlso PaintColor.R + offset(0) < 256 Then
-            offsetIndex = 0
-            GlowColor = Color.FromArgb(PaintColor.R + offset(0), PaintColor.G + offset(1), PaintColor.B + offset(2))
-
-            If GlowColor.R = 255 Then
-                offsetIndex = 1
-            End If
-
-        ElseIf offset(2) = 0 AndAlso PaintColor.G + offset(1) < 256 Then
-            offsetIndex = 1
-            GlowColor = Color.FromArgb(255, PaintColor.G + offset(1), PaintColor.B + offset(2))
-
-            If GlowColor.G = 255 Then
-                offsetIndex = 2
-            End If
-
-        ElseIf PaintColor.B + offset(2) < 256 Then
-            offsetIndex = 2
-            GlowColor = Color.FromArgb(255, 255, PaintColor.B + offset(2))
-
-            If GlowColor.B = 255 Then
-                offsetIndex = -1
-            End If
-
-        End If
-
-        If offsetIndex >= 0 Then
-
-            'Reverse glow effect if we reached the glow target.
-            If offset.Sum = 40 Then
-                glowStatus = -1
-            ElseIf offset.Sum = 0 AndAlso glowStatus = -1 Then 'Start over.
-                glowStatus = 1
-                Exit Sub
-            End If
-
-        ElseIf offsetIndex = -1 Then 'Maximum glow (white light) reached. Find out which channel was last incremented.
-
-            If PaintColor.B = 255 AndAlso GlowColor.B <> 255 Then
-                offsetIndex = 2
-            ElseIf PaintColor.G = 255 AndAlso GlowColor.G <> 255 Then
-                offsetIndex = 1
-            Else
-                offsetIndex = 0
-            End If
-
-            'Begin darkening.
-            glowStatus = -1
-
-        End If
-
-        'Don't go below zero. Move to next channel.
-        If glowStatus = -1 And offset(offsetIndex) = 0 Then
-            offsetIndex -= 1 'The offset here is at least 1.
-        End If
-
-        'Adjust offset.
-        offset(offsetIndex) += 1 * glowStatus
 
     End Sub
 

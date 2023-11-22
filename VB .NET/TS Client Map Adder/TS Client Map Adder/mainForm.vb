@@ -9,6 +9,7 @@
 'THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 Imports System.Configuration
+Imports System.Threading
 Imports System.Xml
 Imports System.Xml.Serialization
 
@@ -205,40 +206,43 @@ Public Class mainForm
         maps.AddRange(IO.Directory.GetFiles(mapPath, "*.mpr", IO.SearchOption.AllDirectories).ToList)
 
         'Process map files.
-        For Each mapName In maps
+        For Each mapPath In maps
 
-            'Get map name index.
-            Dim mapNameStart As Integer = mapName.LastIndexOf("\") + 1
-
-            'Replace underscores with spaces.
-            Dim prettyMapName As String = mapName.Substring(mapNameStart).Replace("_", " ")
+            'Get map name.
+            Dim mapNameStart As Integer = mapPath.LastIndexOf("\") + 1
+            Dim mapName As String = mapPath.Substring(mapNameStart)
 
             'Get file type index.
-            Dim type As Integer = prettyMapName.IndexOf(".map")
-            If type < 0 Then type = prettyMapName.IndexOf(".mpr")
+            Dim typeIndex As Integer = mapName.IndexOf(".map")
+            If typeIndex < 0 Then typeIndex = mapName.IndexOf(".mpr")
 
             'Remove map file extension.
-            If type >= 0 Then
-                prettyMapName = prettyMapName.ToLower.Remove(type)
+            If typeIndex >= 0 Then
+                mapName = mapName.ToLower.Remove(typeIndex)
             Else
-                type = prettyMapName.Length - 1
+                typeIndex = mapName.Length - 1
+            End If
+
+            'Remove extra dot characters.
+            If typeIndex AndAlso mapName.Contains(".") Then
+                mapName = mapName.Replace(".", "dot")
             End If
 
             'Read map.
-            Dim mapText As String = IO.File.ReadAllText(mapName)
+            Dim mapText As String = IO.File.ReadAllText(mapPath)
 
             'Create map object.
             '-----------------------------------------------------------------------------------------------
             Dim map As New Map
 
-            map.filename(prettyMapName.Replace(" ", "_").Replace("-", "_"))
-            map.fullname(mapName)
+            map.filename(mapName.Replace(" ", "_").Replace("-", "_"))
+            map.path(mapPath)
 
             map.CD("0,1,2")
             map.MinPlayers(getMapParamValue("MinPlayer", mapText))
             map.MaxPlayers(getMapParamValue("MaxPlayer", mapText))
             map.Name(getMapParamValue("Name", mapText.Substring(mapText.IndexOf("[Basic]")))) 'Not used for now.
-            map.Description("[" + map.MaxPlayers + "] " + StrConv(prettyMapName, VbStrConv.ProperCase)) 'Convert first letter of each word to uppercase.
+            map.Description("[" + map.MaxPlayers + "] " + StrConv(mapName, VbStrConv.ProperCase)) 'Convert first letter of each word to uppercase.
 
             'We don't know the author. User must fill it himself.
             map.Author("Unknown")
@@ -248,16 +252,17 @@ Public Class mainForm
             map.LocalSize(getMapParamValue("LocalSize", mapText))
 
             Dim image As Bitmap
+
             Try
 
-                image = Bitmap.FromFile(mapName.Substring(0, mapNameStart + type) + ".png") 'Get ".png" file.
+                image = Bitmap.FromFile(mapPath.Substring(0, mapNameStart) + map.filename() + ".png") 'Get ".png" file.
                 map.PreviewSize(image.Width.ToString + "," + image.Height.ToString)
                 image.Dispose()
 
             Catch ex As IO.FileNotFoundException
 
                 Try
-                    image = Bitmap.FromFile(mapName.Substring(0, mapNameStart + type) + ".jpg") 'Try to get ".jpg" file.
+                    image = Bitmap.FromFile(mapPath.Substring(0, mapNameStart) + map.filename() + ".jpg") 'Try to get ".jpg" file.
                     map.PreviewSize(image.Width.ToString + "," + image.Height.ToString)
                     image.Dispose()
 
@@ -265,33 +270,33 @@ Public Class mainForm
 
                     'If preview not found, act accordingly.
                     If Not useRendererBox.Checked Then
-                        logError("Preview not found for " + mapName)
+                        logError("Preview not found for " + mapPath)
                         Continue For
                     Else
-                        logInfo("Preview not found for " + mapName + ". Generating...")
+                        logInfo("Preview not found for " + mapPath + ". Generating...")
 
                         Dim customOutput() As String = {"", ""}
-                        renderMap(mapName, customOutput) 'Render map and create preview on the spot.
+
+                        'Render map and create preview on the spot.
+                        renderMap(mapPath, map.filename(), customOutput)
 
                         If customOutput(0).Equals("") Then
-                            logError("Preview not generated for " + mapName)
+                            logError("Preview not generated for " + mapPath)
                             Continue For
                         End If
 
-                        'Get preview.
+                        'Correct aspect ratio, if needed, in a "hacky" way.
+                        'This is obviously not tested and probably shouldn't be xDDD.
+
+                        'UPDATE:
+                        'TS Client has trouble aligning the start position markers in the correct position though.
+                        'The latest versions of TS Client (v6.0+) don't need to add custom maps to the MPMaps.ini file at all.
+                        'They appear in the "Custom Map" category inside the map selection screen.
+                        'This fixes the issue of the spawn marker alignment but it also makes this whole program useless.
+                        'RIP TS Client - Map Adder (2021 - 2023)
                         Try
-                            Dim imagePath As String = mapName.Substring(0, mapNameStart) + map.filename + customOutput(0)
+                            Dim imagePath As String = mapPath.Substring(0, mapNameStart) + map.filename() + customOutput(0)
                             image = Bitmap.FromFile(imagePath)
-
-                            'Correct aspect ratio, if needed, in a "hacky" way.
-                            'This is obviously not tested and probably shouldn't be xDDD.
-
-                            'UPDATE:
-                            'TS Client has trouble aligning the start position markers in the correct position though.
-                            'The latest versions of TS Client (v6.0+) don't need to add custom maps to the MPMaps.ini file at all.
-                            'They appear in the "Custom Map" category inside the map selection screen.
-                            'This fixes the issue of the spawn marker alignment but it also makes this whole program useless.
-                            'RIP TS Client - Map Adder (2021 - 2023)
 
                             Dim newSize As New Size(800, 400)
 
@@ -311,7 +316,7 @@ Public Class mainForm
                             newImage.Dispose()
 
                         Catch excep As IO.FileNotFoundException
-                            logError("Preview not found for " + mapName)
+                            logError("Preview not found for " + mapPath)
                             Continue For
                         Catch excep As Exception
                             logError(ex.Message.ToString)
@@ -320,22 +325,22 @@ Public Class mainForm
 
                     End If
                 Catch exc As Exception
-                    logError(ex.Message.ToString)
-                    Continue For
+                    Throw exc
                 End Try
+
             Catch ex As Exception
                 logError(ex.Message.ToString)
                 Continue For
             End Try
 
             'Set proper game mode depending on residing dir.
-            If (mapName.Contains("\Tiberian Sun\")) Then
+            If (mapPath.Contains("\Tiberian Sun\")) Then
                 map.GameModes("Default")
-            ElseIf (mapName.Contains("\Firestorm\")) Then
+            ElseIf (mapPath.Contains("\Firestorm\")) Then
                 map.GameModes("Default")
-            ElseIf (mapName.Contains("\Custom\")) Then
+            ElseIf (mapPath.Contains("\Custom\")) Then
                 map.GameModes("Custom")
-            ElseIf (mapName.Contains("\Fan-made\")) Then
+            ElseIf (mapPath.Contains("\Fan-made\")) Then
                 map.GameModes("Fan-made")
             End If
 
@@ -345,8 +350,8 @@ Public Class mainForm
             'Rename map file.
             Dim newName As String = map.filename + ".map"
 
-            If mapName.Substring(0, mapNameStart) + newName <> mapName Then
-                My.Computer.FileSystem.RenameFile(mapName, newName)
+            If mapPath.Substring(0, mapNameStart) + newName <> mapPath Then
+                My.Computer.FileSystem.RenameFile(mapPath, newName)
             End If
 
             mapObjects.Add(map)
@@ -411,22 +416,39 @@ Public Class mainForm
         End With
     End Sub
 
-    Private Sub renderMap(ByVal mapName As String, ByRef output() As String)
+    Private Sub renderMap(ByVal mapPath As String, ByVal mapName As String, ByRef output() As String)
 
         'Get renderer ".exe" file.
         Dim renderer As New ProcessStartInfo()
         renderer.FileName = txtRendererPath.Text
         renderer.WorkingDirectory = renderer.FileName.Substring(0, renderer.FileName.LastIndexOf("\"))
+        renderer.RedirectStandardOutput = True
+        renderer.UseShellExecute = False
 
         Try
             'Get last used settings from GUI.
             Dim rendererSettings As New ConfigXmlDocument
             rendererSettings.Load(renderer.WorkingDirectory + "\gui_settings.xml")
 
-            renderer.Arguments = "-i """ + mapName + """" 'Add map path parameter.
-            ReadRendererXMLSettings(rendererSettings.DocumentElement.FirstChild.FirstChild, renderer.Arguments, mapName, output) 'Read rest of settings for Renderer's GUI XML settings file.
+            renderer.Arguments = "-i """ + mapPath + """" 'Add map path parameter.
+            ReadRendererXMLSettings(rendererSettings.DocumentElement.FirstChild.FirstChild, renderer.Arguments,
+                                    mapName, output) 'Read rest of settings for Renderer's GUI XML settings file.
 
-            Process.Start(renderer).WaitForExit(30 * 1000) 'Wait at most 30 seconds to render the map.
+            Dim rendererProcess As Process = Process.Start(renderer)
+            rendererProcess.WaitForExit(30 * 1000)  'Wait at most 30 seconds to render the map.
+
+            'Sometimes the renderer hangs when redirecting the output.
+            'In that case, we start again.
+            If rendererProcess.HasExited = False Then
+                renderer.RedirectStandardOutput = False
+                rendererProcess.Kill()
+                rendererProcess = Process.Start(renderer)
+                rendererProcess.WaitForExit(30 * 1000)  'Wait at most 30 seconds to render the map.
+            End If
+
+            If rendererProcess.ExitCode <> 0 Then
+                logError(rendererProcess.StandardOutput.ReadToEnd())
+            End If
 
         Catch ex As ConfigurationErrorsException
 
@@ -434,9 +456,15 @@ Public Class mainForm
             logError(ex.Filename)
 
             'If an error occured while trying to read external settings, use default ones.
-            renderer.Arguments = "-i """ + mapName + """ -p -M ""modconfig.xml"""
+            renderer.Arguments = "-i """ + mapPath + """ -p -M ""modconfig.xml"""
 
-            Process.Start(renderer).WaitForExit(30 * 1000) 'Wait at most 30 seconds to render the map.
+            Dim rendererProcess As Process = Process.Start(renderer)
+            rendererProcess.WaitForExit(30 * 1000)  'Wait at most 30 seconds to render the map.
+
+            If rendererProcess.ExitCode <> 0 Then
+                logError(rendererProcess.StandardOutput.ReadToEnd())
+            End If
+            rendererProcess.Close()
 
         Catch ex As Exception
             logError(ex.Message)
@@ -466,17 +494,13 @@ Public Class mainForm
                 xml_node = FindAttribute(nodeList, "outputpngq")
                 Dim compression As String = GetInnerXml(xml_node)
 
-                If Not String.IsNullOrEmpty(compression) Then
+                If Not String.IsNullOrEmpty(compression) AndAlso Not compression.Equals("6") Then
                     settings += " -c " + compression
                 End If
+
             End If
 
-            'Get file type index.
-            Dim type As Integer = mapName.IndexOf(".map")
-            If type < 0 Then type = mapName.IndexOf(".mpr")
-
             'Automatic/custom output filename option.
-
             'OVERRIDE IT SINCE THE FILENAMES OF THE MAP AND THE PREVIEW MUST BE THE SAME.
 
             'xml_node = FindAttribute(nodeList, "outputauto")
@@ -492,7 +516,7 @@ Public Class mainForm
             '    End If
             'End If
 
-            settings += " -o """ + mapName.Remove(type) + """"
+            settings += " -o """ + mapName + """"
 
             'JPG option.
             xml_node = FindAttribute(nodeList, "outputjpg")
@@ -567,22 +591,6 @@ Public Class mainForm
                 settings += " -r"
             End If
 
-            'Squared start positions option.
-            'This option is merged with the "startmarkertype" option in the latest versions.
-            xml_node = FindAttribute(nodeList, "squaredpos")
-
-            If GetInnerXml(xml_node).Equals("True") Then
-                settings += " -S"
-            End If
-
-            'Tiled start positions option.
-            'This option is merged with the "startmarkertype" option in the latest versions.
-            xml_node = FindAttribute(nodeList, "tiledpos")
-
-            If GetInnerXml(xml_node).Equals("True") Then
-                settings += " -s"
-            End If
-
             'Size mode option.
             xml_node = FindAttribute(nodeList, "autosize")
 
@@ -649,7 +657,7 @@ Public Class mainForm
                         markerType = " -S"
                     Case "Tiled"
                         markerType = " -s"
-                    Case "None", "Circled", "Diamond", "Ellipsed", "Starred"
+                    Case "Circled", "Diamond", "Ellipsed", "Starred"
                         markerType = " --start-pos-" + markerType.ToLower
                     Case Else
                         markerType = String.Empty
@@ -665,8 +673,26 @@ Public Class mainForm
                         markerSize = ""
                 End Select
 
-                If Not String.IsNullOrEmpty(markerSize) And Not String.IsNullOrEmpty(markerSize) Then
+                If Not String.IsNullOrEmpty(markerType) AndAlso Not String.IsNullOrEmpty(markerSize) Then
                     settings += " --mark-start-pos" + markerType + markerSize
+                End If
+
+            Else 'Older versions.
+
+                'Squared start positions option.
+                'This option is merged with the "startmarkertype" option in the latest versions.
+                xml_node = FindAttribute(nodeList, "squaredpos")
+
+                If GetInnerXml(xml_node).Equals("True") Then
+                    settings += " -S"
+                End If
+
+                'Tiled start positions option.
+                'This option is merged with the "startmarkertype" option in the latest versions.
+                xml_node = FindAttribute(nodeList, "tiledpos")
+
+                If GetInnerXml(xml_node).Equals("True") Then
+                    settings += " -s"
                 End If
 
             End If
@@ -719,7 +745,7 @@ Public Class mainForm
             '......
 
             'This was added in the latest versions and I don't know what it does.
-            settings += " --bkp"
+            settings += " --bkp "
 
         Catch ex As Exception
             Console.WriteLine(ex.ToString)

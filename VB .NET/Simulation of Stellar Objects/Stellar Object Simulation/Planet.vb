@@ -8,9 +8,6 @@
 
 'THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-
-Imports System.ComponentModel
-
 Public Class Planet
     Inherits StellarObject
 
@@ -30,17 +27,34 @@ Public Class Planet
             Return BorderWidth
         End Get
     End Property
-    Public ReadOnly Property GetHalfSize() As Integer
+    Public ReadOnly Property GetHalfSize() As Double
         Get
             Return Size / 2
         End Get
     End Property
-    Public ReadOnly Property GetHalfVisualSize() As Integer
+    Public ReadOnly Property GetHalfVisualSize() As Double
         Get
             Return VisualSize / 2
         End Get
     End Property
 
+    Public ReadOnly Property isFullyVisibleX() As Boolean
+        Get
+            Return CenterOfMass.X >= UniverseOffsetX + GetHalfVisualSize + BorderWidth / 2 And
+                   CenterOfMass.X <= Universe.getWidth - GetHalfVisualSize - BorderWidth / 2 'If fully inside the X visible area.
+        End Get
+    End Property
+    Public ReadOnly Property isFullyVisibleY() As Boolean
+        Get
+            Return CenterOfMass.Y >= UniverseOffsetY + GetHalfVisualSize + BorderWidth / 2 And
+                   CenterOfMass.Y <= Universe.getHeight - GetHalfVisualSize - BorderWidth / 2 'If fully inside the Y visible area.
+        End Get
+    End Property
+    Public ReadOnly Property isFullyVisible() As Boolean
+        Get
+            Return isFullyVisibleX() And isFullyVisibleY() 'If fully visible inside the X,Y visible area.
+        End Get
+    End Property
     Public Overrides ReadOnly Property isVisibleX() As Boolean
         Get
             Return CenterOfMass.X >= UniverseOffsetX - GetHalfVisualSize - BorderWidth / 2 And
@@ -61,19 +75,20 @@ Public Class Planet
                     ByVal pSize As Double, ByVal pEarthMass As Double, pBorderWidth As Integer, ByVal pColor As Color,
                      ByVal pVelInit As PointFD, Optional ByVal pVel As PointFD = Nothing)
 
-        Universe = pUniverse 'Set universe the object is in.
-        UniverseMatrix = pUniverseMatrix 'Set object's universe matrix.
+        Universe = pUniverse
+        UniverseMatrix = pUniverseMatrix
 
-        InverseUniverseMatrix = UniverseMatrix.Clone 'Save inverted matrix.
+        InverseUniverseMatrix = UniverseMatrix.Clone
         InverseUniverseMatrix.Invert()
 
         'Set offset.
         UniverseOffsetX = Universe.OffsetX
         UniverseOffsetY = Universe.OffsetY
 
-        CenterOfMass = pLocation 'Init center of mass.
-        Size = pSize 'Init object actual size.
-        VisualSize = pSize + CenterOfMass.Z / pSize 'Init object visual size.
+        Type = StellarObjectType.Planet
+        CenterOfMass = pLocation
+        Size = pSize
+        VisualSize = pSize + CenterOfMass.Z / pSize
 
         'Set minimum size as to not disappear entirely.
         If VisualSize < 0 Then
@@ -91,7 +106,7 @@ Public Class Planet
         'End If
 
         BorderWidth = pBorderWidth 'Init object border width.
-        Color = pColor 'Init object color.
+        PaintColor = pColor 'Init object color.
 
         'Add vertices to planet.
         planetVertices.Add(New PointFD(pLocation.X - GetHalfVisualSize, pLocation.Y - GetHalfVisualSize,
@@ -136,7 +151,7 @@ Public Class Planet
             End If
         End If
 
-        ListItem.ForeColor = Color 'Set label color.
+        ListItem.BackColor = PaintColor 'Set label color.
 
         AccX = 0
         AccY = 0
@@ -165,71 +180,92 @@ Public Class Planet
 
         If Direction = "" Then
 
-            currentVertex.X = dX - GetHalfVisualSize
-            currentVertex.Y = dY - GetHalfVisualSize
-            currentVertex.Z = dZ - GetHalfVisualSize
+            'Calculate new visual size.
+            Dim newVisualSize = Size + CenterOfMass.Z / Size
 
-            Vertices(0) = currentVertex 'Update vertex.
+            'Update visual size and starting vertex.
+            If Not VisualSize.Equals(newVisualSize) Then
+
+                'Set minimum visual size as to not disappear completely.
+                If newVisualSize < 4 Then
+                    newVisualSize = 4
+                    VisualSize = 4
+                End If
+
+                'Grow rectangle uniformly.
+                Dim offset As Double = (newVisualSize - VisualSize) / 2
+
+                currentVertex.X = dX - GetHalfVisualSize - offset
+                currentVertex.Y = dY - GetHalfVisualSize - offset
+                currentVertex.Z = dZ - GetHalfVisualSize - offset
+
+                'Update visual size.
+                VisualSize = newVisualSize
+
+            Else
+                currentVertex.X = dX - GetHalfVisualSize
+                currentVertex.Y = dY - GetHalfVisualSize
+                currentVertex.Z = dZ - GetHalfVisualSize
+            End If
 
         Else
-            currentVertex = Vertices(0) 'Get vertex.
+            currentVertex = Vertices(0) 'Get starting vertex.
 
             'Change coordinates.
-            If Direction.Contains("u") Then
-                currentVertex.Y = Vertices(0).Y - stepCount 'Move up.
-            End If
-            If Direction.Contains("d") Then
-                currentVertex.Y = Vertices(0).Y + stepCount 'Move down.
-            End If
-            If Direction.Contains("l") Then
-                currentVertex.X = Vertices(0).X - stepCount 'Move left.
-            End If
-            If Direction.Contains("r") Then
-                currentVertex.X = Vertices(0).X + stepCount 'Move right.
-            End If
+            Select Case Direction
+                Case "u"
+                    currentVertex.Y = Vertices(0).Y - stepCount 'Move up.
+                Case "d"
+                    currentVertex.Y = Vertices(0).Y + stepCount 'Move down.
+                Case "l"
+                    currentVertex.X = Vertices(0).X - stepCount 'Move left.
+                Case "r"
+                    currentVertex.X = Vertices(0).X + stepCount  'Move right.
+            End Select
 
-            Vertices(0) = currentVertex 'Save new vertex.
 
         End If
 
-        'Update visual size.
-        VisualSize = Size + CenterOfMass.Z / Size
-
-        'Set minimum size as to not disappear entirely.
-        If VisualSize < 4 Then
-            VisualSize = 4
-        End If
-
-        'The center must be updated after the visual size, otherwise the object will start glitching when getting bigger/smaller.
+        Vertices(0) = currentVertex 'Update starting vertex.
         CenterOfMass = New PointFD(dX, dY, dZ) 'New center of mass.
 
     End Sub
     Friend Overrides Sub CheckForBounce()
 
+        'Dim delta As Integer = 0
+
         'Bouncing (Left, Right & Top, Bottom).
-        If CenterOfMass.X <= UniverseOffsetX + GetHalfSize + BorderWidth - 1 Or
-           CenterOfMass.X >= Universe.getWidth - GetHalfSize - BorderWidth + 1 Then
+        If Not isFullyVisibleX() Then
 
             'Change X direction.
             VelX = -VelX 'Opposite direction.
 
-            If CenterOfMass.X <= UniverseOffsetX + GetHalfSize + BorderWidth - 1 Then
-                Move(0, "", UniverseOffsetX + GetHalfSize + BorderWidth - 1, CenterOfMass.Y)
-            Else
-                Move(0, "", Universe.getWidth - GetHalfSize - BorderWidth + 1, CenterOfMass.Y)
-            End If
+            'Bounce back when velocity is not zero.
+            'If VelX <> 0 Then
+            '    delta = 1
+            'End If
 
-        ElseIf CenterOfMass.Y <= UniverseOffsetY + GetHalfSize + BorderWidth - 1 Or
-               CenterOfMass.Y >= Universe.getHeight - GetHalfSize - BorderWidth + 1 Then
+            'If CenterOfMass.X < UniverseOffsetX + GetHalfVisualSize + BorderWidth / 2 Then
+            '    Move(0, "", UniverseOffsetX + GetHalfVisualSize + BorderWidth / 2 + delta, CenterOfMass.Y, CenterOfMass.Z)
+            'Else
+            '    Move(0, "", Universe.getWidth - GetHalfVisualSize - BorderWidth / 2 - delta, CenterOfMass.Y, CenterOfMass.Z)
+            'End If
+
+        ElseIf Not isFullyVisibleY() Then
 
             'Change Y direction.
             VelY = -VelY 'Opposite direction.
 
-            If CenterOfMass.Y <= UniverseOffsetY + GetHalfSize + BorderWidth - 1 Then
-                Move(0, "", CenterOfMass.X, UniverseOffsetY + GetHalfSize + BorderWidth - 1)
-            Else
-                Move(0, "", CenterOfMass.X, Universe.getHeight - GetHalfSize - BorderWidth + 1)
-            End If
+            'Bounce back when velocity is not zero.
+            'If VelY <> 0 Then
+            '    delta = 1
+            'End If
+
+            'If CenterOfMass.Y < UniverseOffsetY + GetHalfVisualSize + BorderWidth / 2 Then
+            '    Move(0, "", CenterOfMass.X, UniverseOffsetY + GetHalfVisualSize + BorderWidth / 2 + delta, CenterOfMass.Z)
+            'Else
+            '    Move(0, "", CenterOfMass.X, Universe.getHeight - GetHalfVisualSize - BorderWidth / 2 - delta, CenterOfMass.Z)
+            'End If
 
             'Console.Write("im going places" + Math.Sign(planetVelY).ToString + planetCenterOfMass.ToString + vbNewLine)
         End If

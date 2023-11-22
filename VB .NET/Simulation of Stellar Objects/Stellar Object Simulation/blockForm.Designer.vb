@@ -35,8 +35,9 @@ Partial Class blockForm
     Private Sub InitializeComponent()
         Me.components = New System.ComponentModel.Container()
         Dim resources As System.ComponentModel.ComponentResourceManager = New System.ComponentModel.ComponentResourceManager(GetType(blockForm))
-        Dim ListViewGroup3 As System.Windows.Forms.ListViewGroup = New System.Windows.Forms.ListViewGroup("Stars", System.Windows.Forms.HorizontalAlignment.Left)
-        Dim ListViewGroup4 As System.Windows.Forms.ListViewGroup = New System.Windows.Forms.ListViewGroup("Planets", System.Windows.Forms.HorizontalAlignment.Left)
+        Dim ListViewGroup1 As System.Windows.Forms.ListViewGroup = New System.Windows.Forms.ListViewGroup("Stars", System.Windows.Forms.HorizontalAlignment.Left)
+        Dim ListViewGroup2 As System.Windows.Forms.ListViewGroup = New System.Windows.Forms.ListViewGroup("Planets", System.Windows.Forms.HorizontalAlignment.Left)
+        Dim ListViewGroup3 As System.Windows.Forms.ListViewGroup = New System.Windows.Forms.ListViewGroup("BlackHoles", System.Windows.Forms.HorizontalAlignment.Left)
         Me.lblCoordsMouse = New System.Windows.Forms.Label()
         Me.Timer1 = New System.Windows.Forms.Timer(Me.components)
         Me.lblTimeTick = New System.Windows.Forms.Label()
@@ -56,10 +57,10 @@ Partial Class blockForm
         Me.lblParamXVel = New System.Windows.Forms.Label()
         Me.numParamXVel = New System.Windows.Forms.NumericUpDown()
         Me.boxTimeParam = New System.Windows.Forms.GroupBox()
+        Me.cbTickSpeed = New System.Windows.Forms.ComboBox()
         Me.boxMode = New System.Windows.Forms.GroupBox()
-        Me.radModeNothing = New System.Windows.Forms.RadioButton()
-        Me.radModeStar = New System.Windows.Forms.RadioButton()
-        Me.radModePlanet = New System.Windows.Forms.RadioButton()
+        Me.chkbNoCreation = New System.Windows.Forms.CheckBox()
+        Me.cbCreateType = New System.Windows.Forms.ComboBox()
         Me.boxGeneral = New System.Windows.Forms.GroupBox()
         Me.chkRealisticSim = New System.Windows.Forms.CheckBox()
         Me.numTraj = New System.Windows.Forms.NumericUpDown()
@@ -167,18 +168,20 @@ Partial Class blockForm
         Me.lblTimeTick.Location = New System.Drawing.Point(8, 37)
         Me.lblTimeTick.Margin = New System.Windows.Forms.Padding(4, 0, 4, 0)
         Me.lblTimeTick.Name = "lblTimeTick"
-        Me.lblTimeTick.Size = New System.Drawing.Size(45, 23)
+        Me.lblTimeTick.Size = New System.Drawing.Size(62, 23)
         Me.lblTimeTick.TabIndex = 8
-        Me.lblTimeTick.Text = "Tick:"
+        Me.lblTimeTick.Text = "Speed:"
         '
         'numTimeTick
         '
+        Me.numTimeTick.Enabled = False
         Me.numTimeTick.Font = New System.Drawing.Font("Calibri", 11.25!, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, CType(161, Byte))
-        Me.numTimeTick.Location = New System.Drawing.Point(61, 34)
+        Me.numTimeTick.Location = New System.Drawing.Point(198, 34)
         Me.numTimeTick.Margin = New System.Windows.Forms.Padding(4)
-        Me.numTimeTick.Maximum = New Decimal(New Integer() {1500, 0, 0, 0})
+        Me.numTimeTick.Maximum = New Decimal(New Integer() {2000, 0, 0, 0})
+        Me.numTimeTick.Minimum = New Decimal(New Integer() {1, 0, 0, 0})
         Me.numTimeTick.Name = "numTimeTick"
-        Me.numTimeTick.Size = New System.Drawing.Size(235, 30)
+        Me.numTimeTick.Size = New System.Drawing.Size(98, 30)
         Me.numTimeTick.TabIndex = 7
         Me.numTimeTick.TextAlign = System.Windows.Forms.HorizontalAlignment.Right
         Me.numTimeTick.Value = New Decimal(New Integer() {1, 0, 0, 0})
@@ -370,6 +373,7 @@ Partial Class blockForm
         '
         'boxTimeParam
         '
+        Me.boxTimeParam.Controls.Add(Me.cbTickSpeed)
         Me.boxTimeParam.Controls.Add(Me.numTimeTick)
         Me.boxTimeParam.Controls.Add(Me.lblTimeTick)
         Me.boxTimeParam.Font = New System.Drawing.Font("Calibri", 11.25!, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, CType(161, Byte))
@@ -380,13 +384,21 @@ Partial Class blockForm
         Me.boxTimeParam.Size = New System.Drawing.Size(304, 75)
         Me.boxTimeParam.TabIndex = 14
         Me.boxTimeParam.TabStop = False
-        Me.boxTimeParam.Text = "Universe Tick"
+        Me.boxTimeParam.Text = "Universe Tick Speed"
+        '
+        'cbTickSpeed
+        '
+        Me.cbTickSpeed.FormattingEnabled = True
+        Me.cbTickSpeed.Items.AddRange(New Object() {"Custom", "Fast", "Faster", "Fastest"})
+        Me.cbTickSpeed.Location = New System.Drawing.Point(77, 34)
+        Me.cbTickSpeed.Name = "cbTickSpeed"
+        Me.cbTickSpeed.Size = New System.Drawing.Size(114, 31)
+        Me.cbTickSpeed.TabIndex = 9
         '
         'boxMode
         '
-        Me.boxMode.Controls.Add(Me.radModeNothing)
-        Me.boxMode.Controls.Add(Me.radModeStar)
-        Me.boxMode.Controls.Add(Me.radModePlanet)
+        Me.boxMode.Controls.Add(Me.chkbNoCreation)
+        Me.boxMode.Controls.Add(Me.cbCreateType)
         Me.boxMode.Font = New System.Drawing.Font("Calibri", 11.25!, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, CType(0, Byte))
         Me.boxMode.Location = New System.Drawing.Point(1480, 240)
         Me.boxMode.Margin = New System.Windows.Forms.Padding(4)
@@ -397,44 +409,25 @@ Partial Class blockForm
         Me.boxMode.TabStop = False
         Me.boxMode.Text = "Creation Mode"
         '
-        'radModeNothing
+        'chkbNoCreation
         '
-        Me.radModeNothing.AutoSize = True
-        Me.radModeNothing.Font = New System.Drawing.Font("Calibri", 11.25!, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, CType(0, Byte))
-        Me.radModeNothing.Location = New System.Drawing.Point(215, 31)
-        Me.radModeNothing.Margin = New System.Windows.Forms.Padding(4)
-        Me.radModeNothing.Name = "radModeNothing"
-        Me.radModeNothing.Size = New System.Drawing.Size(72, 27)
-        Me.radModeNothing.TabIndex = 21
-        Me.radModeNothing.Text = "None"
-        Me.radModeNothing.UseVisualStyleBackColor = True
+        Me.chkbNoCreation.AutoSize = True
+        Me.chkbNoCreation.Font = New System.Drawing.Font("Calibri", 11.25!)
+        Me.chkbNoCreation.Location = New System.Drawing.Point(215, 32)
+        Me.chkbNoCreation.Name = "chkbNoCreation"
+        Me.chkbNoCreation.Size = New System.Drawing.Size(73, 27)
+        Me.chkbNoCreation.TabIndex = 23
+        Me.chkbNoCreation.Text = "None"
+        Me.chkbNoCreation.UseVisualStyleBackColor = True
         '
-        'radModeStar
+        'cbCreateType
         '
-        Me.radModeStar.AutoSize = True
-        Me.radModeStar.Font = New System.Drawing.Font("Calibri", 11.25!, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, CType(0, Byte))
-        Me.radModeStar.Location = New System.Drawing.Point(124, 31)
-        Me.radModeStar.Margin = New System.Windows.Forms.Padding(4)
-        Me.radModeStar.Name = "radModeStar"
-        Me.radModeStar.Size = New System.Drawing.Size(62, 27)
-        Me.radModeStar.TabIndex = 17
-        Me.radModeStar.Text = "Star"
-        Me.radModeStar.UseVisualStyleBackColor = True
-        '
-        'radModePlanet
-        '
-        Me.radModePlanet.AutoSize = True
-        Me.radModePlanet.Checked = True
-        Me.radModePlanet.Font = New System.Drawing.Font("Calibri", 11.25!, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, CType(0, Byte))
-        Me.radModePlanet.Location = New System.Drawing.Point(12, 31)
-        Me.radModePlanet.Margin = New System.Windows.Forms.Padding(4)
-        Me.radModePlanet.Name = "radModePlanet"
-        Me.radModePlanet.Size = New System.Drawing.Size(79, 27)
-        Me.radModePlanet.TabIndex = 16
-        Me.radModePlanet.TabStop = True
-        Me.radModePlanet.Text = "Planet"
-        Me.trajTooltip.SetToolTip(Me.radModePlanet, "Hold CTRL for continuous mode.")
-        Me.radModePlanet.UseVisualStyleBackColor = True
+        Me.cbCreateType.FormattingEnabled = True
+        Me.cbCreateType.Items.AddRange(New Object() {"Planet", "Star", "Black hole"})
+        Me.cbCreateType.Location = New System.Drawing.Point(12, 30)
+        Me.cbCreateType.Name = "cbCreateType"
+        Me.cbCreateType.Size = New System.Drawing.Size(197, 31)
+        Me.cbCreateType.TabIndex = 22
         '
         'boxGeneral
         '
@@ -643,7 +636,7 @@ Partial Class blockForm
         Me.btnNavReturn.BackgroundImageLayout = System.Windows.Forms.ImageLayout.None
         Me.btnNavReturn.FlatAppearance.BorderColor = System.Drawing.Color.Lime
         Me.btnNavReturn.FlatAppearance.MouseDownBackColor = System.Drawing.Color.Red
-        Me.btnNavReturn.FlatAppearance.MouseOverBackColor = System.Drawing.Color.OrangeRed
+        Me.btnNavReturn.FlatAppearance.MouseOverBackColor = System.Drawing.Color.Red
         Me.btnNavReturn.FlatStyle = System.Windows.Forms.FlatStyle.Flat
         Me.btnNavReturn.Font = New System.Drawing.Font("Calibri", 11.25!)
         Me.btnNavReturn.ForeColor = System.Drawing.Color.Yellow
@@ -705,12 +698,13 @@ Partial Class blockForm
         '
         Me.objectListView.Columns.AddRange(New System.Windows.Forms.ColumnHeader() {Me.NameHeader, Me.LocationXHeader, Me.LocationYHeader, Me.LocationZHeader, Me.AccelerationHeader, Me.AccelerationXHeader, Me.AccelerationYHeader, Me.AccelerationZHeader, Me.VelocityHeader, Me.VelocityXHeader, Me.VelocityYHeader, Me.VelocityZHeader, Me.MassHeader, Me.SizeHeader})
         Me.objectListView.Font = New System.Drawing.Font("Calibri", 11.25!, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, CType(0, Byte))
-        ListViewGroup3.Header = "Stars"
-        ListViewGroup3.Name = "Stars"
-        ListViewGroup4.Header = "Planets"
-        ListViewGroup4.Name = "Planets"
-        ListViewGroup4.Tag = ""
-        Me.objectListView.Groups.AddRange(New System.Windows.Forms.ListViewGroup() {ListViewGroup3, ListViewGroup4})
+        ListViewGroup1.Header = "Stars"
+        ListViewGroup1.Name = "Stars"
+        ListViewGroup2.Header = "Planets"
+        ListViewGroup2.Name = "Planets"
+        ListViewGroup3.Header = "BlackHoles"
+        ListViewGroup3.Name = "BlackHoles"
+        Me.objectListView.Groups.AddRange(New System.Windows.Forms.ListViewGroup() {ListViewGroup1, ListViewGroup2, ListViewGroup3})
         Me.objectListView.HideSelection = False
         Me.objectListView.Location = New System.Drawing.Point(8, 27)
         Me.objectListView.Margin = New System.Windows.Forms.Padding(4)
@@ -1192,6 +1186,7 @@ Partial Class blockForm
         Me.AutoScaleDimensions = New System.Drawing.SizeF(8.0!, 16.0!)
         Me.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font
         Me.AutoSize = True
+        Me.BackColor = System.Drawing.Color.Silver
         Me.ClientSize = New System.Drawing.Size(1793, 902)
         Me.Controls.Add(Me.pnlActionRight)
         Me.Controls.Add(Me.boxTraj)
@@ -1260,8 +1255,6 @@ Partial Class blockForm
     Friend WithEvents btnReset As Button
     Friend WithEvents boxTimeParam As GroupBox
     Friend WithEvents boxMode As GroupBox
-    Friend WithEvents radModeStar As RadioButton
-    Friend WithEvents radModePlanet As RadioButton
     Friend WithEvents boxParam As GroupBox
     Friend WithEvents lblParamYVel As Label
     Friend WithEvents numParamYVel As NumericUpDown
@@ -1278,7 +1271,6 @@ Partial Class blockForm
     Friend WithEvents boxCoords As GroupBox
     Friend WithEvents lblCoordsAbs As Label
     Friend WithEvents boxObjectInfo As GroupBox
-    Friend WithEvents radModeNothing As RadioButton
     Friend WithEvents btnPauseUniverse As Button
     Friend WithEvents pnlActionLeft As FlowLayoutPanel
     Friend WithEvents picUniverse As PictureBox
@@ -1335,4 +1327,7 @@ Partial Class blockForm
     Friend WithEvents imgListNavBtn As ImageList
     Friend WithEvents btnZoomTool As Button
     Friend WithEvents btnZoomAreaTool As Button
+    Friend WithEvents cbTickSpeed As ComboBox
+    Friend WithEvents cbCreateType As ComboBox
+    Friend WithEvents chkbNoCreation As CheckBox
 End Class

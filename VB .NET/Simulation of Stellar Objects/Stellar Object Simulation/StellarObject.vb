@@ -18,11 +18,13 @@ Public Class StellarObject
     Private objectUniverseOffsetX As Double
     Private objectUniverseOffsetY As Double
 
+    Private objectType As StellarObjectType
     Private objectSize As Integer
     Private objectRadius As Integer
     Private objectVisualSize As Double 'Used for Z dimension.
     Private objectMass As Double
     Private objectColor As Color
+    Private objectGlow As Color
     Private objectBorderWidth As Integer
 
     Private objectCenterOfMass As PointFD
@@ -53,6 +55,12 @@ Public Class StellarObject
     Private objectTrajectoryPoints As New List(Of PointFD)
     Private objectMaxTrajectoryPoints As Integer
     Private objectTrajRelativeDist As New List(Of PointF)
+
+    Enum StellarObjectType As Byte
+        Planet
+        Star
+        BlackHole
+    End Enum
 
     Public Property Universe() As Universe
         Get
@@ -95,6 +103,14 @@ Public Class StellarObject
         End Set
     End Property
 
+    Public Property Type As StellarObjectType
+        Get
+            Return objectType
+        End Get
+        Set(value As StellarObjectType)
+            objectType = value
+        End Set
+    End Property
     Public Property Size() As Integer
         Get
             Return objectSize
@@ -127,7 +143,7 @@ Public Class StellarObject
             objectMass = Value
         End Set
     End Property
-    Public Property Color() As Color
+    Public Property PaintColor() As Color
         Get
             Return objectColor
         End Get
@@ -135,6 +151,15 @@ Public Class StellarObject
             objectColor = Color
         End Set
     End Property
+    Public Property GlowColor As Color
+        Get
+            Return objectGlow
+        End Get
+        Set(value As Color)
+            objectGlow = value
+        End Set
+    End Property
+
     Public Property BorderWidth() As Integer
         Get
             Return objectBorderWidth
@@ -303,6 +328,7 @@ Public Class StellarObject
     End Property
 
     'Misc properties.
+
     Public Overridable ReadOnly Property isVisibleX() As Boolean
         Get
             Return objectCenterOfMass.X >= objectUniverseOffsetX - VisualSize - BorderWidth / 2 And
@@ -337,15 +363,21 @@ Public Class StellarObject
             Return isPartialVisibleX() And isPartialVisibleY() 'If it's half or more inside the X,Y visible area.
         End Get
     End Property
-
-    Public ReadOnly Property isStar() As Boolean
+    Public ReadOnly Property isFullyVisibleX() As Boolean
         Get
-            Return [GetType]() = GetType(Star) 'Is the object a star?
+            Return CenterOfMass.X >= UniverseOffsetX + VisualSize + BorderWidth / 2 And
+                   CenterOfMass.X <= Universe.getWidth - VisualSize - BorderWidth / 2 'If fully inside the X visible area.
         End Get
     End Property
-    Public ReadOnly Property isPlanet() As Boolean
+    Public ReadOnly Property isFullyVisibleY() As Boolean
         Get
-            Return [GetType]() = GetType(Planet) 'Is the object a planet?
+            Return CenterOfMass.Y >= UniverseOffsetY + VisualSize + BorderWidth / 2 And
+                   CenterOfMass.Y <= Universe.getHeight - VisualSize - BorderWidth / 2 'If fully inside the Y visible area.
+        End Get
+    End Property
+    Public ReadOnly Property isFullyVisible() As Boolean
+        Get
+            Return isFullyVisibleX() And isFullyVisibleY() 'If fully visible inside the X,Y visible area.
         End Get
     End Property
 
@@ -409,9 +441,9 @@ Public Class StellarObject
                     Dim newVelZ As Double = (objectVelZ * objectMass + obj.VelZ * obj.Mass) / newMass
 
                     'New color is the sum of their halves.
-                    Dim newObjectcolor As Color = Color.FromArgb(objectColor.R / 2 + obj.Color.R / 2,
-                                                                 objectColor.G / 2 + obj.Color.G / 2,
-                                                                 objectColor.B / 2 + obj.Color.B / 2)
+                    Dim newObjectcolor As Color = Color.FromArgb(objectColor.R / 2 + obj.PaintColor.R / 2,
+                                                                 objectColor.G / 2 + obj.PaintColor.G / 2,
+                                                                 objectColor.B / 2 + obj.PaintColor.B / 2)
                     'I'm the eater.
                     If objectMass >= obj.Mass Then
 
@@ -419,7 +451,7 @@ Public Class StellarObject
                         obj.IsMerged = True
 
                         'Initialize new merged object.
-                        If isStar Then
+                        If Not Type = StellarObjectType.Planet Then
 
                             newObjectRadius = objectRadius + obj.Radius / 4
 
@@ -431,7 +463,7 @@ Public Class StellarObject
                             Dim newPlanetSize As Integer = objectSize + obj.Size / 4
 
                             'Check if the mass is big enough to ignite a star.
-                            If obj.isPlanet And newMass >= Universe.MinFusionMass Then
+                            If obj.Type = StellarObjectType.Planet And newMass >= Universe.MinFusionMass Then
                                 CType(Me, Star).Init(objectUniverse, objectUniverseMatrix, CenterOfMass, newPlanetSize, 1,
                                                      objectBorderWidth, newObjectcolor, Nothing, New PointFD(newVelX, newVelY, newVelZ))
                             Else
@@ -454,7 +486,7 @@ Public Class StellarObject
                         IsMerged = True
 
                         'Initialize new merged object.
-                        If obj.isStar Then
+                        If Not Type = StellarObjectType.Planet Then
 
                             newObjectRadius = obj.Radius + objectRadius / 4
 
@@ -466,7 +498,7 @@ Public Class StellarObject
                             Dim newPlanetSize As Integer = obj.Size + objectSize / 4
 
                             'Check if the mass is big enough to ignite a star.
-                            If obj.isPlanet And newMass >= Universe.MinFusionMass Then
+                            If obj.Type = StellarObjectType.Planet And newMass >= Universe.MinFusionMass Then
                                 CType(obj, Star).Init(objectUniverse, objectUniverseMatrix, obj.CenterOfMass, newPlanetSize, 1,
                                                       objectBorderWidth, newObjectcolor, Nothing, New PointFD(newVelX, newVelY, newVelZ))
                             Else
@@ -626,6 +658,7 @@ Public Class StellarObject
                                                     Math.Round(objectTrajectoryPoints.Last.Y, 2))
                         centerPoint.X = Math.Round(centerPoint.X, 2)
                         centerPoint.Y = Math.Round(centerPoint.Y, 2)
+
                         'If center of mass is not the same, create new trajectory point.
                         If Not centerPoint.Equals(newPoint) Then
 
