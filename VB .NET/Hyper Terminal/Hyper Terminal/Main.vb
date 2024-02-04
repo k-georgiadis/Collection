@@ -8,6 +8,8 @@
 
 'THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
+Imports System.Text.RegularExpressions
+
 Public Class Main
 
     Dim listen As Integer = 0
@@ -59,7 +61,8 @@ Public Class Main
         transmitData.Enabled = False
 
         'Assign Tooltip.
-        hexTooltip.SetToolTip(byteMode, "Examples : FF, 0a, c0, D, 0, 9")
+        hexTooltip.SetToolTip(byteMode, "Examples : FF, 0a, c0, 0001, 10AA")
+
     End Sub
 
     Private Sub GetSettings()
@@ -231,7 +234,14 @@ Public Class Main
 
             ElseIf type = "byte" Then
 
-                com.Write(New Byte() {Convert.ToInt16(data, 16)}, 0, 1)
+                Dim strEcho As String = String.Empty
+                Dim byteList As New List(Of Byte)
+
+                Dim matches As MatchCollection = Regex.Matches(data, ".{2}")
+                For Each match In matches
+                    byteList.Add(Byte.Parse(match.ToString, Globalization.NumberStyles.HexNumber))
+                Next
+                com.Write(byteList.ToArray, 0, byteList.Count)
 
                 'If data.Length = 1 Then
                 'data = "0" + data 'Add the leading zero(0) if we didn't send full byte.
@@ -297,7 +307,8 @@ Public Class Main
     Private Sub byteMode_CheckedChanged(sender As Object, e As EventArgs) Handles byteMode.CheckedChanged
 
         If byteMode.Checked = True Then
-            inputData.MaxLength = 2 'For Hex numbers.
+            'inputData.MaxLength = 2 'For Hex numbers.
+            inputData.MaxLength = 2147483647
             sendCapsCheck.Enabled = False
             sendCapsCheck.Checked = False
 
