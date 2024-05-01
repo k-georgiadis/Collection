@@ -19,5 +19,14 @@ Friend Structure Vector3D
         Return Math.Sqrt(X * X + Y * Y + Z * Z)
 
     End Function
+    Friend Function ToPointF() As PointF
+        Return New PointF(X, Y)
+    End Function
+
+    Friend Function DistanceFromPointF(ByVal target As PointF) As Double
+
+        Return Math.Sqrt((X - target.X) * (X - target.X) + (Y - target.Y) * (Y - target.Y))
+
+    End Function
 
 End Structure

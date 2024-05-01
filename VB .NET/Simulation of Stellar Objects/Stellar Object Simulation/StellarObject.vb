@@ -52,9 +52,15 @@ Public Class StellarObject
     Private objectMerged As Boolean
     Private objectSelected As Boolean 'Is object selected?
 
+    'Trajectory system.
     Private objectTrajectoryPoints As New List(Of PointFD)
     Private objectMaxTrajectoryPoints As Integer
     Private objectTrajRelativeDist As New List(Of PointF)
+
+    'Lensing system.
+    Private lensPoints As New List(Of PointF)
+    Private lensorObjects As New List(Of Singularity)
+    Private lensed As Boolean
 
     Enum StellarObjectType As Byte
         Planet
@@ -119,6 +125,12 @@ Public Class StellarObject
             objectSize = Value
         End Set
     End Property
+
+    ''' <summary>
+    ''' The actual radius of the stellar object.
+    ''' This is not the radius that is used to draw the stellar object.
+    ''' </summary>
+    ''' <returns></returns>
     Public Property Radius() As Integer
         Get
             Return objectRadius
@@ -127,6 +139,11 @@ Public Class StellarObject
             objectRadius = Value
         End Set
     End Property
+
+    ''' <summary>
+    ''' Radius used to draw the stellar object to simulate depth (Z dimension).
+    ''' </summary>
+    ''' <returns></returns>
     Public Property VisualSize As Double
         Get
             Return objectVisualSize
@@ -327,6 +344,32 @@ Public Class StellarObject
         End Set
     End Property
 
+    Public Property lensingPoints As List(Of PointF)
+        Get
+            Return lensPoints
+        End Get
+        Set(value As List(Of PointF))
+            lensPoints = value
+        End Set
+    End Property
+    Public Property IsLensed As Boolean
+        Get
+            Return lensed
+        End Get
+        Set(value As Boolean)
+            lensed = value
+        End Set
+    End Property
+
+    Public Property lensorSingularityList As List(Of Singularity)
+        Get
+            Return lensorObjects
+        End Get
+        Set(value As List(Of Singularity))
+            lensorObjects = value
+        End Set
+    End Property
+
     'Misc properties.
 
     Public Overridable ReadOnly Property isVisibleX() As Boolean
@@ -381,7 +424,8 @@ Public Class StellarObject
         End Get
     End Property
 
-    'Misc subs.
+
+    'Misc subs/funcs.
     Friend Sub AddVelX(ByVal AccX As Double)
         objectVelX += AccX
     End Sub
@@ -391,6 +435,94 @@ Public Class StellarObject
     Friend Sub AddVelZ(ByVal AccZ As Double)
         objectVelZ += AccZ
     End Sub
+
+    Public Function ComparePointsByAtan2(ByVal p1 As PointF, ByVal p2 As PointF) As Integer
+
+        'Converting Cartesian to polar coordinates.
+        Dim theta1 As Double = Math.Atan2(p1.Y - CenterOfMass.Y, p1.X - CenterOfMass.X)
+        Dim theta2 As Double = Math.Atan2(p2.Y - CenterOfMass.Y, p2.X - CenterOfMass.X)
+
+        If p1.Equals(Nothing) Then
+            If p2.Equals(Nothing) Then
+                ' If p1 is Nothing and p2 is Nothing, they're
+                ' equal. 
+                Return 0
+            Else
+                ' If p1 is Nothing and p2 is not Nothing, p2
+                ' is greater. 
+                Return -1
+            End If
+        Else
+            ' If p1 is not Nothing...
+            '
+            If p2.Equals(Nothing) Then
+                ' ...and p2 is Nothing, p1 is greater.
+                Return -1
+            Else
+                ' ...and p2 is not Nothing, compare the point coordinates.
+
+                If theta1 = theta2 Then
+
+                    Return 0 'Both points are equal.
+
+                ElseIf theta1 < theta2 Then
+
+                    ' p2 is closer to the top-left corner, so p2 wins.
+                    Return -1
+
+                Else
+
+                    Return 1
+
+                End If
+
+            End If
+        End If
+
+    End Function
+
+    Public Function CompareTest(ByVal p1 As Integer, ByVal p2 As Integer) As Integer
+
+
+        If p1.Equals(Nothing) Then
+            If p2.Equals(Nothing) Then
+                ' If p1 is Nothing and p2 is Nothing, they're
+                ' equal. 
+                Return 0
+            Else
+                ' If p1 is Nothing and p2 is not Nothing, p2
+                ' is greater. 
+                Return -1
+            End If
+        Else
+            ' If p1 is not Nothing...
+            '
+            If p2.Equals(Nothing) Then
+                ' ...and p2 is Nothing, p1 is greater.
+                Return -1
+            Else
+                ' ...and p2 is not Nothing, compare the point coordinates.
+
+                If p1 = p2 Then
+
+                    Return 0 'Both points are equal.
+
+                ElseIf p1 < p2 Then
+
+                    ' p2 is closer to the top-left corner, so p2 wins.
+                    Return -1
+
+                Else
+
+                    Return 1
+
+                End If
+
+            End If
+        End If
+
+    End Function
+
 
     Friend Overridable Sub applyAcceleration(ByVal objList As List(Of StellarObject), ByVal gravityConstant As Double)
 

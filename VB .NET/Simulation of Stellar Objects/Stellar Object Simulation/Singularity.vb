@@ -164,17 +164,17 @@ Public Class Singularity
 
         'Paint ellipse.
         universeGraphics.DrawEllipse(starPen,
-                                     newCenterOfMass.X - CType(VisualSize, Single),
-                                     newCenterOfMass.Y - CType(VisualSize, Single),
-                                     2 * CType(VisualSize, Single),
-                                     2 * CType(VisualSize, Single))
+                                     newCenterOfMass.X - Convert.ToSingle(VisualSize),
+                                     newCenterOfMass.Y - Convert.ToSingle(VisualSize),
+                                     2 * Convert.ToSingle(VisualSize),
+                                     2 * Convert.ToSingle(VisualSize))
 
         'Fill ellipse with black.
         universeGraphics.FillEllipse(starPen.Brush,
-                                     newCenterOfMass.X - CType(VisualSize, Single),
-                                     newCenterOfMass.Y - CType(VisualSize, Single),
-                                     2 * CType(VisualSize, Single),
-                                     2 * CType(VisualSize, Single))
+                                     newCenterOfMass.X - Convert.ToSingle(VisualSize),
+                                     newCenterOfMass.Y - Convert.ToSingle(VisualSize),
+                                     2 * Convert.ToSingle(VisualSize),
+                                     2 * Convert.ToSingle(VisualSize))
 
         starPen.Color = tempColor
         starPen.Width = tempWidth

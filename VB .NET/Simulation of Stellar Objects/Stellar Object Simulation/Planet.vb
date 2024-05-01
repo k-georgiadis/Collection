@@ -290,7 +290,7 @@ Public Class Planet
 
         'Draw rectangle instead of lines.
         universeGraphics.DrawRectangle(planetPen, pointSingle.X, pointSingle.Y,
-                                       CType(VisualSize, Single), CType(VisualSize, Single))
+                                       Convert.ToSingle(VisualSize), Convert.ToSingle(VisualSize))
 
         'Draw trajectory path.
         DrawTrajectory(universeGraphics, planetPen)

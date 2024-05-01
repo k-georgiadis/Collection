@@ -90,6 +90,7 @@ Public Class Star
             End If
         End If
 
+        lensingPoints.RemoveRange(0, lensingPoints.Count)
         ListItem.BackColor = PaintColor 'Set label color.
 
         AccX = 0
@@ -104,6 +105,7 @@ Public Class Star
         IsSelected = False
         IsMerged = False
         IsMerging = False
+        IsLensed = False
 
     End Sub
 
@@ -206,41 +208,40 @@ Public Class Star
             starPen.Color = GlowColor
         End If
 
-        ' Create a path and add a rectangle.
-        Dim myPath As New GraphicsPath
-        Dim srcRect As New RectangleF(100, 200, 200, 200)
-        myPath.AddRectangle(srcRect)
-        myPath.AddEllipse(srcRect)
-
-        Static warpValue As Double = 0
-
-        Dim point1 As New PointF(srcRect.X + srcRect.Width / 2, srcRect.Y)
-        Dim point2 As New PointF(srcRect.X + srcRect.Width - warpValue, srcRect.Y + srcRect.Height / 2)
-        Dim point3 As New PointF(srcRect.X + srcRect.Width / 2, srcRect.Y + srcRect.Height)
-        Dim point4 As New PointF(srcRect.X, srcRect.Y + srcRect.Height / 2)
-        If warpValue >= srcRect.Width / 2 Then
-            warpValue = srcRect.Width / 2
-        Else
-            warpValue += 0.1
-        End If
-        ' Create a destination for the warped curve.
-        Dim curvePoints As PointF() = {point1, point2, point3, point4}
-        universeGraphics.DrawClosedCurve(New Pen(Color.Red), curvePoints, 0.8275, FillMode.Alternate)
-
-        ' Draw the source path (rectangle)to the screen.
-        universeGraphics.DrawPath(Pens.White, myPath)
-
-
-        'Paint ellipse.
+        'Paint star.
         universeGraphics.DrawEllipse(starPen,
-                                     newCenterOfMass.X - CType(VisualSize, Single),
-                                     newCenterOfMass.Y - CType(VisualSize, Single),
-                                     2 * CType(VisualSize, Single), 2 * CType(VisualSize, Single))
-        'Fill star.
-        universeGraphics.FillEllipse(starPen.Brush,
-                                     newCenterOfMass.X - CType(VisualSize, Single),
-                                     newCenterOfMass.Y - CType(VisualSize, Single),
-                                     2 * CType(VisualSize, Single), 2 * CType(VisualSize, Single))
+                                         newCenterOfMass.X - Convert.ToSingle(VisualSize),
+                                         newCenterOfMass.Y - Convert.ToSingle(VisualSize),
+                                         2 * Convert.ToSingle(VisualSize), 2 * Convert.ToSingle(VisualSize))
+
+        'Pain curve, if lensed.
+        If IsLensed Then
+
+            Dim lensPointList As New List(Of PointF)
+
+            'Add four (4) standard points for drawing the star when lensed.
+            'lensPointList.Add(New PointF(CenterOfMass.X, CenterOfMass.Y - Convert.ToSingle(VisualSize)))
+            'lensPointList.Add(New PointF(CenterOfMass.X + Convert.ToSingle(VisualSize), CenterOfMass.Y))
+            'lensPointList.Add(New PointF(CenterOfMass.X, CenterOfMass.Y + Convert.ToSingle(VisualSize)))
+            'lensPointList.Add(New PointF(CenterOfMass.X - Convert.ToSingle(VisualSize), CenterOfMass.Y))
+
+            'Add rest of lensing points.
+            lensPointList.AddRange(lensingPoints)
+
+            'Sort the points so we can draw the curve the right way.
+            'lensPointList.Sort(AddressOf ComparePointsByAtan2)
+
+            'universeGraphics.DrawClosedCurve(starPen, lensingPoints.ToArray, 0.8275, FillMode.Alternate)
+            universeGraphics.DrawClosedCurve(starPen, lensPointList.ToArray, 0.8275, FillMode.Alternate)
+
+        Else
+            'Fill star.
+            universeGraphics.FillEllipse(starPen.Brush,
+                                     newCenterOfMass.X - Convert.ToSingle(VisualSize),
+                                     newCenterOfMass.Y - Convert.ToSingle(VisualSize),
+                                     2 * Convert.ToSingle(VisualSize), 2 * Convert.ToSingle(VisualSize))
+        End If
+
         starPen.Color = tempColor
         starPen.Width = tempWidth
 
