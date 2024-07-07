@@ -3,22 +3,8 @@
 ################################################################################
 
 /VB .NET/Hyper Terminal/.vs/Hyper Terminal
-/VB .NET/Hyper Terminal/Hyper Terminal/obj/Debug/Hyper Terminal.vbproj.SuggestedBindingRedirects.cache
-/VB .NET/Hyper Terminal/Hyper Terminal/obj/Debug/Hyper Terminal.vbproj.GenerateResource.cache
-/VB .NET/Hyper Terminal/Hyper Terminal/obj/Debug/Hyper Terminal.vbproj.FileListAbsolute.txt
-/VB .NET/Hyper Terminal/Hyper Terminal/obj/Debug/Hyper Terminal.vbproj.CoreCompileInputs.cache
-/VB .NET/Hyper Terminal/Hyper Terminal/obj/Debug/Hyper Terminal.TrustInfo.xml
-/VB .NET/Hyper Terminal/Hyper Terminal/obj/Debug/Hyper Terminal.pdb
-/VB .NET/Hyper Terminal/Hyper Terminal/obj/Debug/Hyper Terminal.exe.manifest
-/VB .NET/Hyper Terminal/Hyper Terminal/obj/Debug/Hyper Terminal.exe
-/VB .NET/Hyper Terminal/Hyper Terminal/obj/Debug/Hyper Terminal.application
-/VB .NET/Hyper Terminal/Hyper Terminal/obj/Debug/DesignTimeResolveAssemblyReferencesInput.cache
-/VB .NET/Hyper Terminal/Hyper Terminal/obj/Debug/DesignTimeResolveAssemblyReferences.cache
-/VB .NET/Hyper Terminal/Hyper Terminal/bin/Debug/Hyper Terminal.pdb
-/VB .NET/Hyper Terminal/Hyper Terminal/bin/Debug/Hyper Terminal.exe.manifest
-/VB .NET/Hyper Terminal/Hyper Terminal/bin/Debug/Hyper Terminal.exe
-/VB .NET/Hyper Terminal/Hyper Terminal/bin/Debug/Hyper Terminal.application
-/VB .NET/Hyper Terminal/Hyper Terminal/bin/Debug/app.publish/Hyper Terminal.exe
+/VB .NET/Hyper Terminal/Hyper Terminal/bin/
+/VB .NET/Hyper Terminal/Hyper Terminal/obj/
 /VB .NET/Simulation of Stellar Objects/.vs/
 /VB .NET/Simulation of Stellar Objects/Stellar Object Simulation/bin/
 /VB .NET/Simulation of Stellar Objects/Stellar Object Simulation/obj/
