@@ -488,130 +488,123 @@ Public Class Main
 
     Private Sub BeginFlash(ByVal data As String)
 
-        Dim alive As Boolean = True
-
-        While alive
-
-            If flashStatus = "init" Then
+        If flashStatus = "init" Then
 
                 mcuResponse = ""
 
-                Try
-                    AddFormattedText(outputTextBox, vbCrLf + "************************************************************" + vbCrLf, Color.Black, FontStyle.Bold)
-                    AddFormattedText(outputTextBox, "[" + Date.Now + "] - Starting operation - [ FLASH ]" + vbCrLf, Color.DarkGreen, FontStyle.Bold)
+            Try
+                AddFormattedText(outputTextBox, vbCrLf + "************************************************************" + vbCrLf, Color.Black, FontStyle.Bold)
+                AddFormattedText(outputTextBox, "[" + Date.Now + "] - Starting operation - [ FLASH ]" + vbCrLf, Color.DarkGreen, FontStyle.Bold)
 
-                    If data = String.Empty Then
-                        alive = False
-                        Throw New Exception("Empty file path")
-                    End If
+                If data = String.Empty Then
+                    Throw New Exception("Empty file path")
+                End If
 
-                    Dim binaryData As Byte() = File.ReadAllBytes(data)
+                Dim binaryData As Byte() = File.ReadAllBytes(data)
 
-                    AddFormattedText(outputTextBox, "[" + Date.Now + "] - BIN loaded - [ " + openFileDialog.SafeFileName + " ]" + vbCrLf, Color.DarkGreen, FontStyle.Bold)
+                AddFormattedText(outputTextBox, "[" + Date.Now + "] - BIN loaded - [ " + openFileDialog.SafeFileName + " ]" + vbCrLf, Color.DarkGreen, FontStyle.Bold)
 
-                    'Send signal to prepare for flashing.
-                    com.Write("x88")
+                'Send signal to prepare for flashing.
+                com.Write("x88")
 
                     'Send file size. (max 2 bytes)
                     com.Write(New Byte() {(binaryData.Count And &HFF00) >> 8, (binaryData.Count And &HFF)}, 0, 2)
 
-                    'Wait until we get a response or we time out.
-                    Dim timer As New Stopwatch
-                    timer.Restart()
-                    While mcuResponse = String.Empty
+                'Wait until we get a response or we time out.
+                Dim timer As New Stopwatch
+                timer.Restart()
+                While mcuResponse = String.Empty
 
-                        If timer.ElapsedMilliseconds >= 1000 Then
-                            Exit While
-                        End If
-
-                    End While
-                    timer.Stop()
-
-                    'Did we get the right response?
-                    If mcuResponse = Chr(FLASH_OK) Then
-
-                        flashStatus = "start"
-
-                        AddFormattedText(outputTextBox, "[" + Date.Now + "] - MCU OK -" + vbCrLf, Color.DarkGreen, FontStyle.Bold)
-                        AddFormattedText(outputTextBox, "[" + Date.Now + "] - FLASHING -" + vbCrLf, Color.DarkGreen, FontStyle.Bold)
-
-                        Dim buffer As List(Of Byte)
-                        Dim crcByte As Byte
-
-                        'Flash binary file to MCU in SPM_PAGESIZE chunks.
-                        For i = 0 To binaryData.Count - 1 Step SPM_PAGESIZE
-
-                            flashStatus = "send"
-                            mcuResponse = ""
-
-                            'If we 're on last page and we have spare bytes, replace them with 0xFF.
-                            If i + SPM_PAGESIZE > binaryData.Count Then
-
-                                buffer = binaryData.ToList.GetRange(i, binaryData.Count - i)
-                                buffer.AddRange(Enumerable.Repeat(Of Byte)(&HFF, (i + SPM_PAGESIZE) - binaryData.Count))
-
-                            Else
-                                buffer = binaryData.ToList.GetRange(i, SPM_PAGESIZE)
-                            End If
-
-                            'Generate and insert CRC byte.
-                            crcByte = GenerateCRC(buffer.ToArray, SPM_PAGESIZE)
-                            buffer.Add(crcByte)
-
-                            'Send page plus CRC byte.
-                            com.Write(buffer.ToArray, 0, buffer.Count)
-
-                            'Wait until we get a response or we time out.
-                            timer.Restart()
-                            While mcuResponse = String.Empty
-
-                                If timer.ElapsedMilliseconds >= 1000 Then
-                                    Exit While
-                                End If
-
-                            End While
-                            timer.Stop()
-
-                            'Check response.
-                            Select Case mcuResponse
-
-                                Case Chr(FLASH_OK) 'CRC OK.
-                                    AddFormattedText(outputTextBox, "[" + Date.Now + "] - PAGE " + Convert.ToInt32((i / SPM_PAGESIZE)).ToString + " OK -" + vbCrLf, Color.DarkSlateGray, FontStyle.Bold)
-                                    Continue For
-
-                                Case Chr(FLASH_NOK) 'CRC NOK.
-                                    Throw New Exception("BAD checksum")
-
-                                Case Else
-                                    Throw New Exception("MCU timed out")
-
-                            End Select
-
-                        Next
-                        mcuResponse = ""
-                        flashStatus = "complete"
-                        AddFormattedText(outputTextBox, "[" + Date.Now + "] - FLASH COMPLETE - ", Color.DarkGreen, FontStyle.Bold)
-
-                    Else
-                        AddFormattedText(outputTextBox, "[" + Date.Now + "] - Error: MCU failed to respond - ", Color.Red, FontStyle.Bold)
+                    If timer.ElapsedMilliseconds >= 1000 Then
+                        Exit While
                     End If
 
-                Catch ex As IOException
-                    flashStatus = "failed"
-                    AddFormattedText(outputTextBox, "[" + Date.Now + "] - Error: Failed to read BIN file - " + ex.Message, Color.Red, FontStyle.Bold)
-                Catch ex As Exception
-                    flashStatus = "failed"
-                    AddFormattedText(outputTextBox, "[" + Date.Now + "] - Error: " + ex.Message + " - ", Color.Red, FontStyle.Bold)
-                Finally
+                End While
+                timer.Stop()
 
-                    AddFormattedText(outputTextBox, vbCrLf + "************************************************************" + vbCrLf, Color.Black, FontStyle.Bold)
-                    mcuResponse = String.Empty
+                'Did we get the right response?
+                If mcuResponse = Chr(FLASH_OK) Then
 
-                End Try
+                    flashStatus = "start"
 
-            End If
+                    AddFormattedText(outputTextBox, "[" + Date.Now + "] - MCU OK -" + vbCrLf, Color.DarkGreen, FontStyle.Bold)
+                    AddFormattedText(outputTextBox, "[" + Date.Now + "] - FLASHING -" + vbCrLf, Color.DarkGreen, FontStyle.Bold)
 
-        End While
+                    Dim buffer As List(Of Byte)
+                    Dim crcByte As Byte
+
+                    'Flash binary file to MCU in SPM_PAGESIZE chunks.
+                    For i = 0 To binaryData.Count - 1 Step SPM_PAGESIZE
+
+                        flashStatus = "send"
+                        mcuResponse = ""
+
+                        'If we 're on last page and we have spare bytes, replace them with 0xFF.
+                        If i + SPM_PAGESIZE > binaryData.Count Then
+
+                            buffer = binaryData.ToList.GetRange(i, binaryData.Count - i)
+                            buffer.AddRange(Enumerable.Repeat(Of Byte)(&HFF, (i + SPM_PAGESIZE) - binaryData.Count))
+
+                        Else
+                            buffer = binaryData.ToList.GetRange(i, SPM_PAGESIZE)
+                        End If
+
+                        'Generate and insert CRC byte.
+                        crcByte = GenerateCRC(buffer.ToArray, SPM_PAGESIZE)
+                        buffer.Add(crcByte)
+
+                        'Send page plus CRC byte.
+                        com.Write(buffer.ToArray, 0, buffer.Count)
+
+                        'Wait until we get a response or we time out.
+                        timer.Restart()
+                        While mcuResponse = String.Empty
+
+                            If timer.ElapsedMilliseconds >= 1000 Then
+                                Exit While
+                            End If
+
+                        End While
+                        timer.Stop()
+
+                        'Check response.
+                        Select Case mcuResponse
+
+                            Case Chr(FLASH_OK) 'CRC OK.
+                                AddFormattedText(outputTextBox, "[" + Date.Now + "] - PAGE " + Convert.ToInt32((i / SPM_PAGESIZE)).ToString + " OK -" + vbCrLf, Color.DarkSlateGray, FontStyle.Bold)
+                                Continue For
+
+                            Case Chr(FLASH_NOK) 'CRC NOK.
+                                Throw New Exception("BAD checksum")
+
+                            Case Else
+                                Throw New Exception("MCU timed out")
+
+                        End Select
+
+                    Next
+                    mcuResponse = ""
+                    flashStatus = "complete"
+                    AddFormattedText(outputTextBox, "[" + Date.Now + "] - FLASH COMPLETE - ", Color.DarkGreen, FontStyle.Bold)
+
+                Else
+                    AddFormattedText(outputTextBox, "[" + Date.Now + "] - Error: MCU failed to respond - ", Color.Red, FontStyle.Bold)
+                End If
+
+            Catch ex As IOException
+                flashStatus = "failed"
+                AddFormattedText(outputTextBox, "[" + Date.Now + "] - Error: Failed to read BIN file - " + ex.Message, Color.Red, FontStyle.Bold)
+            Catch ex As Exception
+                flashStatus = "failed"
+                AddFormattedText(outputTextBox, "[" + Date.Now + "] - Error: " + ex.Message + " - ", Color.Red, FontStyle.Bold)
+            Finally
+
+                AddFormattedText(outputTextBox, vbCrLf + "************************************************************" + vbCrLf, Color.Black, FontStyle.Bold)
+                mcuResponse = String.Empty
+
+            End Try
+
+        End If
 
         flashThread.Abort()
 
