@@ -53,6 +53,7 @@ Partial Class Main
         Me.stringMode = New System.Windows.Forms.RadioButton()
         Me.byteMode = New System.Windows.Forms.RadioButton()
         Me.modeSel = New System.Windows.Forms.GroupBox()
+        Me.flashMode = New System.Windows.Forms.RadioButton()
         Me.hexTooltip = New System.Windows.Forms.ToolTip(Me.components)
         Me.echoCheck = New System.Windows.Forms.CheckBox()
         Me.GroupBox1 = New System.Windows.Forms.GroupBox()
@@ -61,6 +62,9 @@ Partial Class Main
         Me.appendLbl = New System.Windows.Forms.Label()
         Me.appendList = New System.Windows.Forms.ComboBox()
         Me.portListTooltip = New System.Windows.Forms.ToolTip(Me.components)
+        Me.openFileDialog = New System.Windows.Forms.OpenFileDialog()
+        Me.binaryFilePath = New System.Windows.Forms.TextBox()
+        Me.browseButton = New System.Windows.Forms.Button()
         Me.optionsGB.SuspendLayout()
         Me.modeSel.SuspendLayout()
         Me.GroupBox1.SuspendLayout()
@@ -219,7 +223,7 @@ Partial Class Main
         Me.optionsGB.Font = New System.Drawing.Font("Courier New", 9.0!)
         Me.optionsGB.Location = New System.Drawing.Point(531, 12)
         Me.optionsGB.Name = "optionsGB"
-        Me.optionsGB.Size = New System.Drawing.Size(182, 199)
+        Me.optionsGB.Size = New System.Drawing.Size(182, 176)
         Me.optionsGB.TabIndex = 19
         Me.optionsGB.TabStop = False
         Me.optionsGB.Text = "Options"
@@ -258,15 +262,26 @@ Partial Class Main
         '
         'modeSel
         '
+        Me.modeSel.Controls.Add(Me.flashMode)
         Me.modeSel.Controls.Add(Me.stringMode)
         Me.modeSel.Controls.Add(Me.byteMode)
         Me.modeSel.Font = New System.Drawing.Font("Courier New", 9.0!)
-        Me.modeSel.Location = New System.Drawing.Point(531, 217)
+        Me.modeSel.Location = New System.Drawing.Point(531, 194)
         Me.modeSel.Name = "modeSel"
-        Me.modeSel.Size = New System.Drawing.Size(182, 49)
+        Me.modeSel.Size = New System.Drawing.Size(182, 72)
         Me.modeSel.TabIndex = 23
         Me.modeSel.TabStop = False
         Me.modeSel.Text = "Mode"
+        '
+        'flashMode
+        '
+        Me.flashMode.AutoSize = True
+        Me.flashMode.Location = New System.Drawing.Point(9, 44)
+        Me.flashMode.Name = "flashMode"
+        Me.flashMode.Size = New System.Drawing.Size(60, 19)
+        Me.flashMode.TabIndex = 23
+        Me.flashMode.Text = "FLASH"
+        Me.flashMode.UseVisualStyleBackColor = True
         '
         'hexTooltip
         '
@@ -344,12 +359,39 @@ Partial Class Main
         '
         Me.portListTooltip.IsBalloon = True
         '
+        'openFileDialog
+        '
+        Me.openFileDialog.DefaultExt = "bin"
+        Me.openFileDialog.Filter = "BIN files|*.bin|All files|*.*"
+        '
+        'binaryFilePath
+        '
+        Me.binaryFilePath.BorderStyle = System.Windows.Forms.BorderStyle.FixedSingle
+        Me.binaryFilePath.Location = New System.Drawing.Point(114, 418)
+        Me.binaryFilePath.Name = "binaryFilePath"
+        Me.binaryFilePath.Size = New System.Drawing.Size(318, 20)
+        Me.binaryFilePath.TabIndex = 26
+        Me.binaryFilePath.Visible = False
+        '
+        'browseButton
+        '
+        Me.browseButton.FlatAppearance.BorderColor = System.Drawing.Color.FromArgb(CType(CType(255, Byte), Integer), CType(CType(255, Byte), Integer), CType(CType(192, Byte), Integer))
+        Me.browseButton.FlatAppearance.BorderSize = 5
+        Me.browseButton.Font = New System.Drawing.Font("Courier New", 9.0!, System.Drawing.FontStyle.Italic, System.Drawing.GraphicsUnit.Point, CType(161, Byte))
+        Me.browseButton.Location = New System.Drawing.Point(438, 417)
+        Me.browseButton.Name = "browseButton"
+        Me.browseButton.Size = New System.Drawing.Size(87, 22)
+        Me.browseButton.TabIndex = 27
+        Me.browseButton.Text = "Browse..."
+        Me.browseButton.UseVisualStyleBackColor = True
+        '
         'Main
         '
         Me.AcceptButton = Me.transmitData
         Me.AutoScaleDimensions = New System.Drawing.SizeF(6.0!, 13.0!)
         Me.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font
         Me.ClientSize = New System.Drawing.Size(724, 446)
+        Me.Controls.Add(Me.browseButton)
         Me.Controls.Add(Me.GroupBox1)
         Me.Controls.Add(Me.modeSel)
         Me.Controls.Add(Me.usePort)
@@ -358,6 +400,7 @@ Partial Class Main
         Me.Controls.Add(Me.outputTextBox)
         Me.Controls.Add(Me.transmitData)
         Me.Controls.Add(Me.closeApplication)
+        Me.Controls.Add(Me.binaryFilePath)
         Me.FormBorderStyle = System.Windows.Forms.FormBorderStyle.FixedSingle
         Me.Icon = CType(resources.GetObject("$this.Icon"), System.Drawing.Icon)
         Me.MaximizeBox = False
@@ -371,6 +414,7 @@ Partial Class Main
         Me.GroupBox1.ResumeLayout(False)
         Me.GroupBox1.PerformLayout()
         Me.ResumeLayout(False)
+        Me.PerformLayout()
 
     End Sub
 
@@ -401,4 +445,8 @@ Partial Class Main
     Friend WithEvents clearInputCheck As CheckBox
     Friend WithEvents sendCapsCheck As CheckBox
     Friend WithEvents portListTooltip As ToolTip
+    Friend WithEvents flashMode As RadioButton
+    Friend WithEvents openFileDialog As OpenFileDialog
+    Friend WithEvents binaryFilePath As TextBox
+    Friend WithEvents browseButton As Button
 End Class

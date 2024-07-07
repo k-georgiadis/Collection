@@ -8,9 +8,15 @@
 
 'THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
+Imports System.IO
 Imports System.Text.RegularExpressions
+Imports System.Threading
 
 Public Class Main
+
+    Const SPM_PAGESIZE As Integer = 128
+    Const FLASH_OK As Byte = &H1A
+    Const FLASH_NOK As Byte = &H1E
 
     Dim listen As Integer = 0
     Dim checkPort As Integer = 0
@@ -19,6 +25,10 @@ Public Class Main
     Dim appendChar As String = vbCrLf
 
     Dim com As New IO.Ports.SerialPort
+
+    Dim flashStatus As String
+    Dim mcuResponse As String = ""
+    Dim flashThread As New Thread(AddressOf BeginFlash)
 
     Private Sub Test_Load(sender As Object, e As EventArgs) Handles MyBase.Load
         InitControls()
@@ -95,6 +105,8 @@ Public Class Main
 
         If My.Settings.Item("usrMOD") = "byte" Then
             byteMode.Checked = True
+        ElseIf My.Settings.Item("usrMOD") = "flash" Then
+            flashMode.Checked = True
         End If
 
         If My.Settings.Item("usrAPP") <> "" Then
@@ -130,6 +142,9 @@ Public Class Main
                 .AppendText(text)
                 .ScrollToCaret()
             End With
+            If flashStatus = "failed" OrElse flashStatus = "complete" Then
+                transmitData.Enabled = True
+            End If
         End If
     End Sub
 
@@ -146,7 +161,7 @@ Public Class Main
             AddFormattedText(outputTextBox, "Status: ", Color.Black, FontStyle.Bold)
             AddFormattedText(outputTextBox, portList.SelectedItem.ToString, Color.Blue, FontStyle.Bold)
             AddFormattedText(outputTextBox, " - Closed - ", Color.DarkRed, FontStyle.Bold)
-            AddFormattedText(outputTextBox, "[" + DateTime.Now + "]", Color.DarkRed, FontStyle.Bold)
+            AddFormattedText(outputTextBox, "[" + Date.Now + "]", Color.DarkRed, FontStyle.Bold)
             AddFormattedText(outputTextBox, vbCrLf + "----------------------------------------------", Color.Black, FontStyle.Bold)
 
         Else
@@ -157,7 +172,7 @@ Public Class Main
                 AddFormattedText(outputTextBox, "Status: ", Color.Black, FontStyle.Bold)
                 AddFormattedText(outputTextBox, portList.SelectedItem.ToString, Color.Blue, FontStyle.Bold)
                 AddFormattedText(outputTextBox, " - Open - ", Color.DarkGreen, FontStyle.Bold)
-                AddFormattedText(outputTextBox, "[" + DateTime.Now + "]", Color.DarkGreen, FontStyle.Bold)
+                AddFormattedText(outputTextBox, "[" + Date.Now + "]", Color.DarkGreen, FontStyle.Bold)
                 AddFormattedText(outputTextBox, vbCrLf + "----------------------------------------------" + vbCrLf, Color.Black, FontStyle.Bold)
 
             Catch ex As Exception
@@ -209,8 +224,10 @@ Public Class Main
         Try
             If stringMode.Checked = True Then
                 Send_Data(inputData.Text, "string")
-            Else
+            ElseIf byteMode.Checked Then
                 Send_Data(inputData.Text, "byte")
+            ElseIf flashMode.Checked Then
+                Send_Data(binaryFilePath.Text, "flash")
             End If
         Catch ex As Exception
             AddFormattedText(outputTextBox, ex.Message + vbCrLf, Color.DarkRed, FontStyle.Bold)
@@ -234,7 +251,6 @@ Public Class Main
 
             ElseIf type = "byte" Then
 
-                Dim strEcho As String = String.Empty
                 Dim byteList As New List(Of Byte)
 
                 Dim matches As MatchCollection = Regex.Matches(data, ".{2}")
@@ -245,8 +261,18 @@ Public Class Main
 
                 'If data.Length = 1 Then
                 'data = "0" + data 'Add the leading zero(0) if we didn't send full byte.
-
                 'data = "0x" + data.ToUpper
+
+            ElseIf type = "flash" Then
+
+                transmitData.Enabled = False
+
+                'Begin FLASH process.
+                If Not flashThread.IsAlive OrElse flashThread.ThreadState = ThreadState.Aborted Then
+                    flashThread = New Thread(AddressOf BeginFlash)
+                    flashThread.Start(data)
+                End If
+                flashStatus = "init"
 
             End If
 
@@ -265,16 +291,15 @@ Public Class Main
 
     End Sub
 
+    'This Sub gets called automatically, when the COM port receives data.
     Private Sub COM_DataReceived(ByVal sender As Object, ByVal e As IO.Ports.SerialDataReceivedEventArgs)
 
-        'This Sub gets called automatically, when the COM port receives data.
         Dim str As String = com.ReadExisting
 
         'Print as string or as HEX bytes.
         If stringMode.Checked = True Then
             AddFormattedText(outputTextBox, str, Color.Purple, FontStyle.Bold)
-        Else
-            Dim data As New List(Of Byte)
+        ElseIf byteMode.Checked Then
             Dim byte_val As Byte
             Dim HexData As String
 
@@ -296,8 +321,38 @@ Public Class Main
                 'AddFormattedText(outputTextBox, "0x" + HexData.ToString.ToUpper, Color.Purple, FontStyle.Bold)
                 AddFormattedText(outputTextBox, HexData.ToString.ToUpper, Color.Purple, FontStyle.Bold)
             Next
+        ElseIf flashMode.Checked Then
+
+            'Save response.
+            If mcuResponse = String.Empty Then
+                mcuResponse += str
+            End If
+
+            'If flashStatus = "complete" Then
+            '    Dim byte_val As Byte
+            '    Dim HexData As String
+
+            '    For Each c As Char In mcuResponse
+
+            '        byte_val = Convert.ToByte(c)
+            '        HexData = Convert.ToString(byte_val, 16)
+
+            '        'Add the leading zero(0) if we didn't get a full byte.
+            '        If HexData.Length = 1 Then
+            '            HexData = "0" + HexData
+            '        End If
+
+            '        'Add newline if necessary.
+            '        If c = Chr(10) Then
+            '            HexData += vbNewLine
+            '        End If
+            '        AddFormattedText(outputTextBox, HexData.ToString.ToUpper, Color.Purple, FontStyle.Bold)
+            '    Next
+
+            'End If
 
         End If
+
     End Sub
 
     Private Sub closeApplication_Click(sender As Object, e As EventArgs) Handles closeApplication.Click
@@ -307,20 +362,51 @@ Public Class Main
     Private Sub byteMode_CheckedChanged(sender As Object, e As EventArgs) Handles byteMode.CheckedChanged
 
         If byteMode.Checked = True Then
+
             'inputData.MaxLength = 2 'For Hex numbers.
             inputData.MaxLength = 2147483647
+
             sendCapsCheck.Enabled = False
             sendCapsCheck.Checked = False
+            appendList.Enabled = True
 
             My.Settings.Item("usrMOD") = "byte"
+            My.Settings.Save()
+
         Else
             inputData.MaxLength = 2147483647 'Default value.
             sendCapsCheck.Enabled = True
-
-            My.Settings.Item("usrMOD") = "string"
         End If
 
-        My.Settings.Save()
+    End Sub
+
+    Private Sub flashMode_CheckedChanged(sender As Object, e As EventArgs) Handles flashMode.CheckedChanged
+
+        If flashMode.Checked = True Then
+
+            inputData.MaxLength = 2147483647
+
+            sendCapsCheck.Enabled = False
+            sendCapsCheck.Checked = False
+            appendList.Enabled = False
+            appendList.SelectedIndex = 3
+            inputData.Enabled = False
+            transmitData.Text = "FLASH"
+            binaryFilePath.Visible = True
+            browseButton.Visible = True
+
+            My.Settings.Item("usrMOD") = "flash"
+            My.Settings.Save()
+
+        Else
+            sendCapsCheck.Enabled = True
+            appendList.Enabled = True
+            inputData.Enabled = True
+            transmitData.Text = "Send"
+            binaryFilePath.Visible = False
+            browseButton.Visible = False
+        End If
+
     End Sub
 
     Private Sub appendList_SelectedIndexChanged(sender As Object, e As EventArgs) Handles appendList.SelectedIndexChanged
@@ -339,6 +425,15 @@ Public Class Main
         End If
 
     End Sub
+
+    Private Sub browseButton_Click(sender As Object, e As EventArgs) Handles browseButton.Click
+
+        openFileDialog.ShowDialog()
+        binaryFilePath.Text = openFileDialog.FileName
+
+    End Sub
+
+    'OPTIONS
 
     Private Sub rateList_SelectedIndexChanged(sender As Object, e As EventArgs) Handles rateList.SelectedIndexChanged
 
@@ -388,4 +483,160 @@ Public Class Main
         My.Settings.Save()
 
     End Sub
+
+    'FLASHING
+
+    Private Sub BeginFlash(ByVal data As String)
+
+        Dim alive As Boolean = True
+
+        While alive
+
+            If flashStatus = "init" Then
+
+                mcuResponse = ""
+
+                Try
+                    AddFormattedText(outputTextBox, vbCrLf + "************************************************************" + vbCrLf, Color.Black, FontStyle.Bold)
+                    AddFormattedText(outputTextBox, "[" + Date.Now + "] - Starting operation - [ FLASH ]" + vbCrLf, Color.DarkGreen, FontStyle.Bold)
+
+                    If data = String.Empty Then
+                        alive = False
+                        Throw New Exception("Empty file path")
+                    End If
+
+                    Dim binaryData As Byte() = File.ReadAllBytes(data)
+
+                    AddFormattedText(outputTextBox, "[" + Date.Now + "] - BIN loaded - [ " + openFileDialog.SafeFileName + " ]" + vbCrLf, Color.DarkGreen, FontStyle.Bold)
+
+                    'Send signal to prepare for flashing.
+                    com.Write("x88")
+
+                    'Send file size. (max 2 bytes)
+                    com.Write(New Byte() {(binaryData.Count And &HFF00) >> 8, (binaryData.Count And &HFF)}, 0, 2)
+
+                    'Wait until we get a response or we time out.
+                    Dim timer As New Stopwatch
+                    timer.Restart()
+                    While mcuResponse = String.Empty
+
+                        If timer.ElapsedMilliseconds >= 1000 Then
+                            Exit While
+                        End If
+
+                    End While
+                    timer.Stop()
+
+                    'Did we get the right response?
+                    If mcuResponse = Chr(FLASH_OK) Then
+
+                        flashStatus = "start"
+
+                        AddFormattedText(outputTextBox, "[" + Date.Now + "] - MCU OK -" + vbCrLf, Color.DarkGreen, FontStyle.Bold)
+                        AddFormattedText(outputTextBox, "[" + Date.Now + "] - FLASHING -" + vbCrLf, Color.DarkGreen, FontStyle.Bold)
+
+                        Dim buffer As List(Of Byte)
+                        Dim crcByte As Byte
+
+                        'Flash binary file to MCU in SPM_PAGESIZE chunks.
+                        For i = 0 To binaryData.Count - 1 Step SPM_PAGESIZE
+
+                            flashStatus = "send"
+                            mcuResponse = ""
+
+                            'If we 're on last page and we have spare bytes, replace them with 0xFF.
+                            If i + SPM_PAGESIZE > binaryData.Count Then
+
+                                buffer = binaryData.ToList.GetRange(i, binaryData.Count - i)
+                                buffer.AddRange(Enumerable.Repeat(Of Byte)(&HFF, (i + SPM_PAGESIZE) - binaryData.Count))
+
+                            Else
+                                buffer = binaryData.ToList.GetRange(i, SPM_PAGESIZE)
+                            End If
+
+                            'Generate and insert CRC byte.
+                            crcByte = GenerateCRC(buffer.ToArray, SPM_PAGESIZE)
+                            buffer.Add(crcByte)
+
+                            'Send page plus CRC byte.
+                            com.Write(buffer.ToArray, 0, buffer.Count)
+
+                            'Wait until we get a response or we time out.
+                            timer.Restart()
+                            While mcuResponse = String.Empty
+
+                                If timer.ElapsedMilliseconds >= 1000 Then
+                                    Exit While
+                                End If
+
+                            End While
+                            timer.Stop()
+
+                            'Check response.
+                            Select Case mcuResponse
+
+                                Case Chr(FLASH_OK) 'CRC OK.
+                                    AddFormattedText(outputTextBox, "[" + Date.Now + "] - PAGE " + Convert.ToInt32((i / SPM_PAGESIZE)).ToString + " OK -" + vbCrLf, Color.DarkSlateGray, FontStyle.Bold)
+                                    Continue For
+
+                                Case Chr(FLASH_NOK) 'CRC NOK.
+                                    Throw New Exception("BAD checksum")
+
+                                Case Else
+                                    Throw New Exception("MCU timed out")
+
+                            End Select
+
+                        Next
+                        mcuResponse = ""
+                        flashStatus = "complete"
+                        AddFormattedText(outputTextBox, "[" + Date.Now + "] - FLASH COMPLETE - ", Color.DarkGreen, FontStyle.Bold)
+
+                    Else
+                        AddFormattedText(outputTextBox, "[" + Date.Now + "] - Error: MCU failed to respond - ", Color.Red, FontStyle.Bold)
+                    End If
+
+                Catch ex As IOException
+                    flashStatus = "failed"
+                    AddFormattedText(outputTextBox, "[" + Date.Now + "] - Error: Failed to read BIN file - " + ex.Message, Color.Red, FontStyle.Bold)
+                Catch ex As Exception
+                    flashStatus = "failed"
+                    AddFormattedText(outputTextBox, "[" + Date.Now + "] - Error: " + ex.Message + " - ", Color.Red, FontStyle.Bold)
+                Finally
+
+                    AddFormattedText(outputTextBox, vbCrLf + "************************************************************" + vbCrLf, Color.Black, FontStyle.Bold)
+                    mcuResponse = String.Empty
+
+                End Try
+
+            End If
+
+        End While
+
+        flashThread.Abort()
+
+    End Sub
+
+    Private Function GenerateCRC(ByVal data As Byte(), ByVal len As Integer)
+
+        Dim crc As Byte = 0
+
+        For i = 0 To len - 1
+
+            crc = crc Xor data(i)
+
+            For j = 1 To 8
+                If (crc And &H80) Then
+                    crc = (crc << 1) Xor &H31
+                Else
+                    crc <<= 1
+                End If
+            Next
+
+        Next
+
+        Return crc
+
+    End Function
+
 End Class
