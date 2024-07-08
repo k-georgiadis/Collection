@@ -9,6 +9,7 @@
 'THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 Imports System.IO
+Imports System.Reflection
 Imports System.Text.RegularExpressions
 Imports System.Threading
 
@@ -132,20 +133,65 @@ Public Class Main
     Private Delegate Sub AddFormattedTextDelegate(ByVal RTC As RichTextBox, ByVal text As String, ByVal col As Color, ByVal style As FontStyle)
 
     Private Sub AddFormattedText(ByVal RTC As RichTextBox, ByVal text As String, ByVal col As Color, ByVal style As FontStyle)
+
         If RTC.InvokeRequired Then
             RTC.Invoke(New AddFormattedTextDelegate(AddressOf AddFormattedText), New Object() {RTC, text, col, style})
         Else
+
             With RTC
+
                 .Select(.TextLength, 0)
                 .SelectionFont = New Font(.SelectionFont, style)
                 .SelectionColor = col
+
+                'If .Text.Last <> vbCrLf Then
+                '    .AppendText(vbCrLf + text)
+                'Else
+                '    .AppendText(text)
+                'End If
                 .AppendText(text)
                 .ScrollToCaret()
+
             End With
-            If flashStatus = "failed" OrElse flashStatus = "complete" Then
-                transmitData.Enabled = True
+
+            If flashStatus <> "init" Then
+                transmitData.Text = "FLASH"
             End If
+
         End If
+
+    End Sub
+
+    Private Delegate Sub InsertFormattedTextAtDelegate(ByVal RTC As RichTextBox, ByVal str As String, ByVal text As String, ByVal col As Color, ByVal style As FontStyle)
+
+    Private Sub InsertFormattedTextAt(ByVal RTC As RichTextBox, ByVal str As String, ByVal text As String, ByVal col As Color, ByVal style As FontStyle)
+
+        If RTC.InvokeRequired Then
+            RTC.Invoke(New InsertFormattedTextAtDelegate(AddressOf InsertFormattedTextAt), New Object() {RTC, str, text, col, style})
+        Else
+
+            Dim index As Integer = RTC.Text.LastIndexOf(str) + str.Length
+
+            'Make sure offset is within limits.
+            If RTC.Text.Length > 0 AndAlso str.Length > 0 AndAlso index >= 0 AndAlso index <= RTC.Text.Length Then
+
+                With RTC
+
+                    .Select(0, index)
+                    .Rtf = .SelectedRtf
+
+                    .Select(.TextLength, 0)
+                    .SelectionFont = New Font(.SelectionFont, style)
+                    .SelectionColor = col
+
+                    .AppendText(text)
+
+                End With
+
+            End If
+
+        End If
+
     End Sub
 
     Private Sub usePort_Click(sender As Object, e As EventArgs) Handles usePort.Click
@@ -227,7 +273,31 @@ Public Class Main
             ElseIf byteMode.Checked Then
                 Send_Data(inputData.Text, "byte")
             ElseIf flashMode.Checked Then
-                Send_Data(binaryFilePath.Text, "flash")
+
+                If flashStatus = "init" Then
+
+                    flashStatus = "hold"
+
+                    Dim res As MsgBoxResult = MsgBox("Are you sure you want to stop flashing? This may cause irreversible damage to the MCU.",
+                                                     MsgBoxStyle.OkCancel Or MsgBoxStyle.Exclamation Or MsgBoxStyle.DefaultButton2, Me.Text)
+
+                    'Cancel process, if user said so.
+                    If res = MsgBoxResult.Ok Then
+
+                        mcuResponse = ""
+                        flashStatus = "abort"
+                        flashThread.Abort()
+
+                        AddFormattedText(outputTextBox, vbCrLf + "[" + Date.Now + "] - FLASHING ABORTED", Color.Red, FontStyle.Bold)
+                        AddFormattedText(outputTextBox, vbCrLf + "************************************************************" + vbCrLf, Color.Black, FontStyle.Bold)
+
+                    Else
+                        flashStatus = "init" 'Continue flashing.
+                    End If
+
+                Else
+                    Send_Data(binaryFilePath.Text, "flash")
+                End If
             End If
         Catch ex As Exception
             AddFormattedText(outputTextBox, ex.Message + vbCrLf, Color.DarkRed, FontStyle.Bold)
@@ -265,7 +335,7 @@ Public Class Main
 
             ElseIf type = "flash" Then
 
-                transmitData.Enabled = False
+                transmitData.Text = "Cancel"
 
                 'Begin FLASH process.
                 If Not flashThread.IsAlive OrElse flashThread.ThreadState = ThreadState.Aborted Then
@@ -490,11 +560,11 @@ Public Class Main
 
         If flashStatus = "init" Then
 
-                mcuResponse = ""
+            mcuResponse = ""
 
             Try
                 AddFormattedText(outputTextBox, vbCrLf + "************************************************************" + vbCrLf, Color.Black, FontStyle.Bold)
-                AddFormattedText(outputTextBox, "[" + Date.Now + "] - Starting operation - [ FLASH ]" + vbCrLf, Color.DarkGreen, FontStyle.Bold)
+                AddFormattedText(outputTextBox, "[" + Date.Now + "] - Starting operation [ FLASH ]" + vbCrLf, Color.Blue, FontStyle.Bold)
 
                 If data = String.Empty Then
                     Throw New Exception("Empty file path")
@@ -502,18 +572,28 @@ Public Class Main
 
                 Dim binaryData As Byte() = File.ReadAllBytes(data)
 
-                AddFormattedText(outputTextBox, "[" + Date.Now + "] - BIN loaded - [ " + openFileDialog.SafeFileName + " ]" + vbCrLf, Color.DarkGreen, FontStyle.Bold)
+                AddFormattedText(outputTextBox, "[" + Date.Now + "] - BIN loaded [ " + openFileDialog.SafeFileName + " ]" + vbCrLf, Color.Blue, FontStyle.Bold)
 
                 'Send signal to prepare for flashing.
                 com.Write("x88")
 
-                    'Send file size. (max 2 bytes)
-                    com.Write(New Byte() {(binaryData.Count And &HFF00) >> 8, (binaryData.Count And &HFF)}, 0, 2)
+                'Send file size. (max 2 bytes)
+                com.Write(New Byte() {(binaryData.Count And &HFF00) >> 8, (binaryData.Count And &HFF)}, 0, 2)
+                AddFormattedText(outputTextBox, "[" + Date.Now + "] - Waiting MCU... ", Color.Blue, FontStyle.Bold)
 
                 'Wait until we get a response or we time out.
                 Dim timer As New Stopwatch
                 timer.Restart()
-                While mcuResponse = String.Empty
+                While mcuResponse = String.Empty OrElse flashStatus = "hold"
+
+                    Thread.Sleep(1)
+
+                    'Check if the user tried to cancel the process.
+                    If flashStatus = "hold" Then
+                        timer.Stop()
+                    ElseIf timer.IsRunning = False Then
+                        timer.Start()
+                    End If
 
                     If timer.ElapsedMilliseconds >= 1000 Then
                         Exit While
@@ -523,12 +603,10 @@ Public Class Main
                 timer.Stop()
 
                 'Did we get the right response?
-                If mcuResponse = Chr(FLASH_OK) Then
+                If flashStatus = "init" AndAlso mcuResponse = Chr(FLASH_OK) Then
 
-                    flashStatus = "start"
-
-                    AddFormattedText(outputTextBox, "[" + Date.Now + "] - MCU OK -" + vbCrLf, Color.DarkGreen, FontStyle.Bold)
-                    AddFormattedText(outputTextBox, "[" + Date.Now + "] - FLASHING -" + vbCrLf, Color.DarkGreen, FontStyle.Bold)
+                    AddFormattedText(outputTextBox, "OK" + vbCrLf, Color.Blue, FontStyle.Bold)
+                    AddFormattedText(outputTextBox, "[" + Date.Now + "] - FLASHING [ ", Color.Blue, FontStyle.Bold)
 
                     Dim buffer As List(Of Byte)
                     Dim crcByte As Byte
@@ -536,7 +614,11 @@ Public Class Main
                     'Flash binary file to MCU in SPM_PAGESIZE chunks.
                     For i = 0 To binaryData.Count - 1 Step SPM_PAGESIZE
 
-                        flashStatus = "send"
+                        'Check if the user tried to cancel the process.
+                        While flashStatus = "hold"
+                            Thread.Sleep(1)
+                        End While
+
                         mcuResponse = ""
 
                         'If we 're on last page and we have spare bytes, replace them with 0xFF.
@@ -571,7 +653,11 @@ Public Class Main
                         Select Case mcuResponse
 
                             Case Chr(FLASH_OK) 'CRC OK.
-                                AddFormattedText(outputTextBox, "[" + Date.Now + "] - PAGE " + Convert.ToInt32((i / SPM_PAGESIZE)).ToString + " OK -" + vbCrLf, Color.DarkSlateGray, FontStyle.Bold)
+
+                                Dim percentage As Integer = (i / binaryData.Count) * 100
+
+                                InsertFormattedTextAt(outputTextBox, "[ ", percentage.ToString + "% ]" + vbCrLf, Color.Blue, FontStyle.Bold)
+                                'AddFormattedText(outputTextBox, "[" + Date.Now + "] - PAGE " + Convert.ToInt32((i / SPM_PAGESIZE)).ToString + " OK -" + vbCrLf, Color.DarkSlateGray, FontStyle.Bold)
                                 Continue For
 
                             Case Chr(FLASH_NOK) 'CRC NOK.
@@ -583,30 +669,42 @@ Public Class Main
                         End Select
 
                     Next
+
                     mcuResponse = ""
                     flashStatus = "complete"
-                    AddFormattedText(outputTextBox, "[" + Date.Now + "] - FLASH COMPLETE - ", Color.DarkGreen, FontStyle.Bold)
 
-                Else
-                    AddFormattedText(outputTextBox, "[" + Date.Now + "] - Error: MCU failed to respond - ", Color.Red, FontStyle.Bold)
+                    InsertFormattedTextAt(outputTextBox, "[ ", "100% ]" + vbCrLf, Color.Blue, FontStyle.Bold)
+                    AddFormattedText(outputTextBox, "[" + Date.Now + "] - FLASH COMPLETE", Color.DarkGreen, FontStyle.Bold)
+
+                ElseIf flashStatus = "init" Then
+                    flashStatus = "failed"
+                    AddFormattedText(outputTextBox, "NOK" + vbCrLf + "[" + Date.Now + "] - Error: MCU failed to respond", Color.Red, FontStyle.Bold)
                 End If
 
             Catch ex As IOException
                 flashStatus = "failed"
-                AddFormattedText(outputTextBox, "[" + Date.Now + "] - Error: Failed to read BIN file - " + ex.Message, Color.Red, FontStyle.Bold)
+                AddFormattedText(outputTextBox, "[" + Date.Now + "] - Error: Failed to read BIN file" + ex.Message, Color.Red, FontStyle.Bold)
             Catch ex As Exception
-                flashStatus = "failed"
-                AddFormattedText(outputTextBox, "[" + Date.Now + "] - Error: " + ex.Message + " - ", Color.Red, FontStyle.Bold)
+
+                If flashStatus <> "abort" Then
+                    flashStatus = "failed"
+                    AddFormattedText(outputTextBox, "[" + Date.Now + "] - Error: " + ex.Message, Color.Red, FontStyle.Bold)
+                End If
+
             Finally
 
-                AddFormattedText(outputTextBox, vbCrLf + "************************************************************" + vbCrLf, Color.Black, FontStyle.Bold)
-                mcuResponse = String.Empty
+                If flashStatus <> "abort" Then
+                    AddFormattedText(outputTextBox, vbCrLf + "************************************************************" + vbCrLf, Color.Black, FontStyle.Bold)
+                    mcuResponse = String.Empty
+                End If
 
             End Try
 
         End If
 
-        flashThread.Abort()
+        If flashThread.ThreadState <> ThreadState.AbortRequested Then
+            flashThread.Abort()
+        End If
 
     End Sub
 
