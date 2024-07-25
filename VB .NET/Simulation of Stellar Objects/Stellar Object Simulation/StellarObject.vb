@@ -582,17 +582,23 @@ Public Class StellarObject
                         Dim selected As Boolean = objectSelected 'We need to re-select the eater if it was selected before the merging.
                         obj.IsMerged = True
 
+                        'If object remains still after collision, then make sure to create new object at the center of the collision.
+                        If newVelX = 0 AndAlso newVelY = 0 Then
+                            CenterOfMass = New PointFD(CenterOfMass.X + distanceVector.X / 2, CenterOfMass.Y + distanceVector.Y / 2)
+                        End If
+
                         'Initialize new merged object.
                         If Not Type = StellarObjectType.Planet Then
 
-                            newObjectRadius = objectRadius + obj.Radius / 4
+                            'newObjectRadius = objectRadius + obj.Radius / 4
+                            newObjectRadius = Math.Sqrt(objectRadius * objectRadius + obj.Radius * obj.Radius) 'Mass is distributed evenly across the star.
 
                             CType(Me, Star).Init(objectUniverse, objectUniverseMatrix, CenterOfMass, newObjectRadius, 1,
                                                  objectBorderWidth, newObjectcolor, Nothing, New PointFD(newVelX, newVelY, newVelZ))
 
                         Else
                             'This will no longer be needed when the planets are ellipses and not rectangles.
-                            Dim newPlanetSize As Integer = objectSize + obj.Size / 4
+                            Dim newPlanetSize As Double = objectSize + obj.Size / 4
 
                             'Check if the mass is big enough to ignite a star.
                             If obj.Type = StellarObjectType.Planet And newMass >= Universe.MinFusionMass Then
@@ -617,17 +623,24 @@ Public Class StellarObject
                         Dim selected As Boolean = obj.IsSelected 'We need to re-select the eaten object if it was selected before the merging.
                         IsMerged = True
 
+                        'If object remains still after collision, then make sure to create new object at the center of the collision.
+                        If newVelX = 0 AndAlso newVelY = 0 Then
+                            obj.CenterOfMass = New PointFD(obj.CenterOfMass.X + distanceVector.X / 2, obj.CenterOfMass.Y + distanceVector.Y / 2)
+                        End If
+
                         'Initialize new merged object.
                         If Not Type = StellarObjectType.Planet Then
 
-                            newObjectRadius = obj.Radius + objectRadius / 4
+                            'newObjectRadius = obj.Radius + objectRadius / 4
+                            newObjectRadius = Math.Sqrt(objectRadius * objectRadius + obj.Radius * obj.Radius) 'Mass is distributed evenly across the star.
 
                             CType(obj, Star).Init(objectUniverse, objectUniverseMatrix, obj.CenterOfMass, newObjectRadius, 1,
                                                   objectBorderWidth, newObjectcolor, Nothing, New PointFD(newVelX, newVelY, newVelZ))
 
                         Else
                             'This will no longer be needed when the planets are real planets and not rectangles.
-                            Dim newPlanetSize As Integer = obj.Size + objectSize / 4
+                            'Dim newPlanetSize As Double = obj.Size + objectSize / 4
+                            Dim newPlanetSize As Double = Math.Sqrt(obj.Size * obj.Size + objectSize * objectSize) 'Mass is distributed evenly across the star.
 
                             'Check if the mass is big enough to ignite a star.
                             If obj.Type = StellarObjectType.Planet And newMass >= Universe.MinFusionMass Then

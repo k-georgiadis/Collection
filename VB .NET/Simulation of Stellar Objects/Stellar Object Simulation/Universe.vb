@@ -9,6 +9,7 @@
 'THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 Imports System.Drawing.Drawing2D
+Imports System.Runtime.InteropServices
 Imports System.Runtime.Remoting
 Imports System.Windows
 Imports StellarObjectSimulation.StellarObject
@@ -575,8 +576,8 @@ Public Class Universe
 		For Each bh In objList.FindAll(Function(x) x.Type = StellarObjectType.BlackHole)
 
 			'Assuming we already sorted the list by Z in ascending order.
-			'Take only the stellar objects behind the black hole.
-			For Each obj In objList.FindAll(Function(x) x.CenterOfMass.Z < bh.CenterOfMass.Z)
+			'Take only the stellar objects behind the black hole and that are not already lensed.
+			For Each obj In objList.FindAll(Function(x) x.CenterOfMass.Z < bh.CenterOfMass.Z AndAlso Not x.IsLensed)
 
 				'2D distance vector of two bodies.
 				Dim distanceVector As New PointFD(bh.CenterOfMass.X - obj.CenterOfMass.X, bh.CenterOfMass.Y - obj.CenterOfMass.Y)
@@ -636,21 +637,6 @@ Public Class Universe
 					'If there is an intersection, show it.
 					If lineIntersectPointsC2 IsNot Nothing Then
 
-						'Find point on stellar object that is closest to the singularity.
-						Dim closestPoint As PointF = lineIntersectPointsC2.ToList.Find(
-															Function(p)
-																Return Math.Round(Math.Sqrt((p.X - c1.X) * (p.X - c1.X) +
-																				 (p.Y - c1.Y) * (p.Y - c1.Y))) <= Math.Round(distanceLength - obj.VisualSize)
-															End Function
-														)
-						universeGraphics.DrawLine(New Pen(Color.Red), New PointF(obj.CenterOfMass.X, obj.CenterOfMass.Y), closestPoint)
-
-						'Find point on stellar object that is farthest to the singularity.
-						Dim farthestPoint As PointF = lineIntersectPointsC2.ToList.Find(Function(p) p.X <> closestPoint.X)
-
-						'Calculate and get deflection point.
-						GetDeflectionPoint(New Vector3D(closestPoint.X, closestPoint.Y, obj.CenterOfMass.Z), bh, distanceLength - obj.VisualSize)
-
 						'Add lensor to the list, if not already added. Otherwise, reset points.
 						If Not obj.lensorSingularityList.Contains(bh) Then
 							obj.lensorSingularityList.Add(bh)
@@ -658,10 +644,26 @@ Public Class Universe
 							obj.lensingPoints.RemoveRange(0, obj.lensingPoints.Count)
 						End If
 
+						'Find point on stellar object that is closest to the singularity.
+						Dim closestPoint As PointF = lineIntersectPointsC2.OrderBy(
+															Function(p)
+																Dim v As New Vector3D(p.X, p.Y, 0)
+																Return v.DistanceFromPointF(c1)
+															End Function
+														).First
+						universeGraphics.DrawLine(New Pen(Color.Red), New PointF(obj.CenterOfMass.X, obj.CenterOfMass.Y), closestPoint)
+
 						'We bend the stellar object and then we catch the light that comes in the opposite side of the singularity.
 
+						'Calculate and get deflection point.
+						'GetDeflectionPoint(New Vector3D(closestPoint.X, closestPoint.Y, obj.CenterOfMass.Z), bh, distanceLength - obj.VisualSize)
+
+						'Normally, we would use the above point to accurately bend the light from the star but the values are too extreeme (very small or very big).
+						'Instead, we choose a point on a circle (lensing circle) with center the star itself and radius that's proportional to the radius
+						'of the ellipse formed between the intersecting stellar objects.
+
 						'Because of the drawing limitations in .NET we must get the two (2) points on the line that passes through the center and is
-						'parallel to our intersection. Then we bent those points to simulater the "bending" of the stellar object.
+						'parallel to our intersection. Then we bent those points to complete the bending of the stellar object.
 
 						'We use trigonometry to calculate the parallel intersection points/vectors.
 						Dim xOffset As Double = Math.Sin(vectorAngle) * obj.VisualSize 'A = sin(a) * R
@@ -685,6 +687,9 @@ Public Class Universe
 						Dim lensedParallelIntersectionPoint1 = GetDeflectionPoint(parallelVector1, bh, parallelVector1.DistanceFromPointF(c1))
 						Dim lensedParallelIntersectionPoint2 = GetDeflectionPoint(parallelVector2, bh, parallelVector2.DistanceFromPointF(c1))
 
+						'As explained earlier, we would use the above points point to accurately bend the light from the star.
+						'Instead, we use the lensing circle technique.
+
 						'Get line equations from the singularity center and the intersection points.
 						'Dim extendedLineEquationParams1 As Double() = LineEquationFromTwoPoints(c1, intersectPoints(0))
 						'Dim extendedLineEquationParams2 As Double() = LineEquationFromTwoPoints(c1, intersectPoints(1))
@@ -707,9 +712,9 @@ Public Class Universe
 						'universeGraphics.DrawLine(New Pen(Color.LightBlue), extendedLineIntersectPoint1, extendedLineIntersectPoint2)
 
 						Dim intersectingEllipseRadius As Double = obj.VisualSize + lensingRadius - distanceLength
-						Dim radiusCircleWithBentPoints As Double = obj.VisualSize - intersectingEllipseRadius * 0.2
-						Dim bentIntersectPoints As PointF() = LineIntersectionPointsWithCircle(lineEquationParams(0), lineEquationParams(1), c2,
-																							   Math.Abs(radiusCircleWithBentPoints))
+						Dim lensingCircleRadius As Double = obj.VisualSize - intersectingEllipseRadius * 0.2
+						Dim lensingCirclePoints As PointF() = LineIntersectionPointsWithCircle(lineEquationParams(0), lineEquationParams(1), c2,
+																							   Math.Abs(lensingCircleRadius))
 						Dim bentClosestPoint As PointF
 
 						'Find point on lensing circle that is closest to the stellar object.
@@ -719,18 +724,19 @@ Public Class Universe
 						'																	 (p.Y - c2.Y) * (p.Y - c2.Y))) <= distanceLength
 						'												End Function
 						'											)
-						If bentIntersectPoints IsNot Nothing Then
+						If lensingCirclePoints IsNot Nothing Then
 
-							'Find point on circle containing the bent points that is closest to the singularity.
-							bentClosestPoint = bentIntersectPoints.ToList.Find(
+							'Find point on lensing circle that is closest to the singularity.
+							bentClosestPoint = lensingCirclePoints.OrderBy(
 															Function(p)
 																Dim v As New Vector3D(p.X, p.Y, 0)
-																Return v.DistanceFromPointF(c1) <= distanceLength
+																Return v.DistanceFromPointF(c1)
 															End Function
-														)
+														).First
+
 							'If we reached the center, continue bending behind it.
-							If radiusCircleWithBentPoints < 0 Then
-								bentClosestPoint = bentIntersectPoints.ToList.Find(Function(p) p.X <> bentClosestPoint.X)
+							If lensingCircleRadius < 0 Then
+								bentClosestPoint = lensingCirclePoints.ToList.Find(Function(p) p.X <> bentClosestPoint.X)
 							End If
 
 						Else
@@ -740,31 +746,34 @@ Public Class Universe
 						'Find parallel points to the intersection ones on the oppposite side of the circle.
 						'We do this by faking a singularity on the opposite side.
 						'Then follow the same procedure to find the intersection points as we did for the original one.
-						Dim fakeSingularityCenter As New PointF(obj.CenterOfMass.X - distanceVector.X, obj.CenterOfMass.Y - distanceVector.Y)
-						Dim fakeIntersectPoints As PointF() = CircleIntersectionPoints(distanceLength, lensingRadius, obj.VisualSize, fakeSingularityCenter, c2)
+
+						'These points are used for debugging purposes.
+						'Dim fakeSingularityCenter As New PointF(obj.CenterOfMass.X - distanceVector.X, obj.CenterOfMass.Y - distanceVector.Y)
+						'Dim fakeIntersectPoints As PointF() = CircleIntersectionPoints(distanceLength, lensingRadius, obj.VisualSize, fakeSingularityCenter, c2)
 
 						'Add points to create the bent closed curve.
 						obj.lensingPoints.Add(parallelIntersectionPoint1)
 						'obj.lensingPoints.Add(fakeIntersectPoints(0))
-						'obj.lensingPoints.Add(parallelIntersectionPoint1)
-						'obj.lensingPoints.Add(lensedParallelIntersectionPoint1)
+						obj.lensingPoints.Add(lensedParallelIntersectionPoint1)
 						obj.lensingPoints.Add(bentClosestPoint)
-						'obj.lensingPoints.Add(lensedParallelIntersectionPoint2)
-						'obj.lensingPoints.Add(parallelIntersectionPoint2)
-						'obj.lensingPoints.Add(fakeIntersectPoints(1))
+						obj.lensingPoints.Add(lensedParallelIntersectionPoint2)
 						obj.lensingPoints.Add(parallelIntersectionPoint2)
+						'obj.lensingPoints.Add(fakeIntersectPoints(1))
+
+						'Find point on stellar object that is farthest to the singularity.
+						Dim farthestPoint As PointF = lineIntersectPointsC2.ToList.Find(Function(p) p.X <> closestPoint.X)
 						obj.lensingPoints.Add(farthestPoint)
 
 						'universeGraphics.DrawLine(New Pen(Color.Cyan), bentClosestPoint, closestPoint)
 						If intersectPoints IsNot Nothing Then
 							universeGraphics.DrawLine(New Pen(Color.LightBlue), intersectPoints(0), intersectPoints(1))
 						End If
-						If fakeIntersectPoints IsNot Nothing Then
-							universeGraphics.DrawLine(New Pen(Color.LightBlue), fakeIntersectPoints(0), fakeIntersectPoints(1))
-						End If
+						'If fakeIntersectPoints IsNot Nothing Then
+						'	universeGraphics.DrawLine(New Pen(Color.LightBlue), fakeIntersectPoints(0), fakeIntersectPoints(1))
+						'End If
 
 						universeGraphics.DrawString(intersectingEllipseRadius.ToString, obj.ListItem.Font, Brushes.White, universeOffsetX + 10, universeOffsetY + 70)
-						universeGraphics.DrawString(radiusCircleWithBentPoints.ToString, obj.ListItem.Font, Brushes.White, universeOffsetX + 10, universeOffsetY + 80)
+						universeGraphics.DrawString(lensingCircleRadius.ToString, obj.ListItem.Font, Brushes.White, universeOffsetX + 10, universeOffsetY + 80)
 
 					End If
 

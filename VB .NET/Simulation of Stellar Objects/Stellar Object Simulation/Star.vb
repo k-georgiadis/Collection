@@ -9,6 +9,7 @@
 'THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 Imports System.Drawing.Drawing2D
+Imports System.Windows
 
 Public Class Star
     Inherits StellarObject
@@ -34,7 +35,7 @@ Public Class Star
 
         Type = StellarObjectType.Star
         CenterOfMass = sLocation
-        Radius = sRadius
+        Radius = sRadius 'R = M^0.8
         VisualSize = sRadius + CenterOfMass.Z / sRadius
 
         'Set minimum size as to not disappear entirely.
@@ -233,6 +234,16 @@ Public Class Star
 
             'universeGraphics.DrawClosedCurve(starPen, lensingPoints.ToArray, 0.8275, FillMode.Alternate)
             universeGraphics.DrawClosedCurve(starPen, lensPointList.ToArray, 0.8275, FillMode.Alternate)
+            starPen.Color = Color.Red
+
+            Dim distanceVector As New PointFD(CenterOfMass.X - lensingPoints(1).X, CenterOfMass.Y - lensingPoints(1).Y)
+            Dim v1 As New Vector(distanceVector.X, distanceVector.Y)
+            Dim v2 As New Vector(distanceVector.X, 0)
+            Dim vectorAngle = Vector.AngleBetween(v2, v1)
+
+            Dim g As Graphics
+            g.RotateTransform(vectorAngle)
+            g.DrawRectangle(Pens.White, New Rectangle)
 
         Else
             'Fill star.

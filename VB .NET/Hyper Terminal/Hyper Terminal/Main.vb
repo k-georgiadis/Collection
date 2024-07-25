@@ -649,21 +649,25 @@ Public Class Main
                         End While
                         timer.Stop()
 
+                        'Display percentage.
+                        Dim percentage As Integer = (i / binaryData.Count) * 100
+
                         'Check response.
                         Select Case mcuResponse
 
                             Case Chr(FLASH_OK) 'CRC OK.
-
-                                Dim percentage As Integer = (i / binaryData.Count) * 100
-
                                 InsertFormattedTextAt(outputTextBox, "[ ", percentage.ToString + "% ]" + vbCrLf, Color.Blue, FontStyle.Bold)
                                 'AddFormattedText(outputTextBox, "[" + Date.Now + "] - PAGE " + Convert.ToInt32((i / SPM_PAGESIZE)).ToString + " OK -" + vbCrLf, Color.DarkSlateGray, FontStyle.Bold)
                                 Continue For
 
                             Case Chr(FLASH_NOK) 'CRC NOK.
+                                InsertFormattedTextAt(outputTextBox, "[ ", percentage.ToString + "%", Color.Red, FontStyle.Bold)
+                                InsertFormattedTextAt(outputTextBox, "%", " ]" + vbCrLf, Color.Blue, FontStyle.Bold)
                                 Throw New Exception("BAD checksum")
 
                             Case Else
+                                InsertFormattedTextAt(outputTextBox, "[ ", percentage.ToString + "%", Color.Red, FontStyle.Bold)
+                                InsertFormattedTextAt(outputTextBox, "%", " ]" + vbCrLf, Color.Blue, FontStyle.Bold)
                                 Throw New Exception("MCU timed out")
 
                         End Select
