@@ -8,6 +8,7 @@
 
 'THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
+Imports System.ComponentModel
 Imports System.IO
 Imports System.Reflection
 Imports System.Text.RegularExpressions
@@ -15,7 +16,7 @@ Imports System.Threading
 
 Public Class Main
 
-    Const SPM_PAGESIZE As Integer = 128
+    'Const SPM_PAGESIZE As Integer = 128
     Const FLASH_OK As Byte = &H1A
     Const FLASH_NOK As Byte = &H1E
 
@@ -29,6 +30,7 @@ Public Class Main
 
     Dim flashStatus As String
     Dim mcuResponse As String = ""
+    Dim spmPageSize As Integer
     Dim flashThread As New Thread(AddressOf BeginFlash)
 
     Private Sub Test_Load(sender As Object, e As EventArgs) Handles MyBase.Load
@@ -154,7 +156,7 @@ Public Class Main
 
             End With
 
-            If flashStatus <> "init" Then
+            If flashStatus <> "init" AndAlso flashStatus <> "flash" Then
                 transmitData.Text = "FLASH"
             End If
 
@@ -274,8 +276,9 @@ Public Class Main
                 Send_Data(inputData.Text, "byte")
             ElseIf flashMode.Checked Then
 
-                If flashStatus = "init" Then
+                If flashStatus = "init" OrElse flashStatus = "flash" Then
 
+                    Dim prevFlashStatus As String = flashStatus
                     flashStatus = "hold"
 
                     Dim res As MsgBoxResult = MsgBox("Are you sure you want to stop flashing? This may cause irreversible damage to the MCU.",
@@ -292,7 +295,7 @@ Public Class Main
                         AddFormattedText(outputTextBox, vbCrLf + "************************************************************" + vbCrLf, Color.Black, FontStyle.Bold)
 
                     Else
-                        flashStatus = "init" 'Continue flashing.
+                        flashStatus = prevFlashStatus 'Continue flashing.
                     End If
 
                 Else
@@ -370,6 +373,7 @@ Public Class Main
         If stringMode.Checked = True Then
             AddFormattedText(outputTextBox, str, Color.Purple, FontStyle.Bold)
         ElseIf byteMode.Checked Then
+
             Dim byte_val As Byte
             Dim HexData As String
 
@@ -391,10 +395,13 @@ Public Class Main
                 'AddFormattedText(outputTextBox, "0x" + HexData.ToString.ToUpper, Color.Purple, FontStyle.Bold)
                 AddFormattedText(outputTextBox, HexData.ToString.ToUpper, Color.Purple, FontStyle.Bold)
             Next
+
         ElseIf flashMode.Checked Then
 
             'Save response.
             If mcuResponse = String.Empty Then
+                mcuResponse += str
+            ElseIf flashStatus = "init" Then
                 mcuResponse += str
             End If
 
@@ -581,10 +588,10 @@ Public Class Main
                 com.Write(New Byte() {(binaryData.Count And &HFF00) >> 8, (binaryData.Count And &HFF)}, 0, 2)
                 AddFormattedText(outputTextBox, "[" + Date.Now + "] - Waiting MCU... ", Color.Blue, FontStyle.Bold)
 
-                'Wait until we get a response or we time out.
+                'Wait until we get an OK and the SPM_PAGESIZE data or we time out.
                 Dim timer As New Stopwatch
                 timer.Restart()
-                While mcuResponse = String.Empty OrElse flashStatus = "hold"
+                While mcuResponse.Length < 4 OrElse flashStatus = "hold"
 
                     Thread.Sleep(1)
 
@@ -603,7 +610,10 @@ Public Class Main
                 timer.Stop()
 
                 'Did we get the right response?
-                If flashStatus = "init" AndAlso mcuResponse = Chr(FLASH_OK) Then
+                If flashStatus = "init" AndAlso mcuResponse.Length = 4 Then
+
+                    flashStatus = "flash"
+                    spmPageSize = Convert.ToUInt16(mcuResponse.Substring(1), 16)
 
                     AddFormattedText(outputTextBox, "OK" + vbCrLf, Color.Blue, FontStyle.Bold)
                     AddFormattedText(outputTextBox, "[" + Date.Now + "] - FLASHING [ ", Color.Blue, FontStyle.Bold)
@@ -612,7 +622,7 @@ Public Class Main
                     Dim crcByte As Byte
 
                     'Flash binary file to MCU in SPM_PAGESIZE chunks.
-                    For i = 0 To binaryData.Count - 1 Step SPM_PAGESIZE
+                    For i = 0 To binaryData.Count - 1 Step spmPageSize
 
                         'Check if the user tried to cancel the process.
                         While flashStatus = "hold"
@@ -622,17 +632,17 @@ Public Class Main
                         mcuResponse = ""
 
                         'If we 're on last page and we have spare bytes, replace them with 0xFF.
-                        If i + SPM_PAGESIZE > binaryData.Count Then
+                        If i + spmPageSize > binaryData.Count Then
 
                             buffer = binaryData.ToList.GetRange(i, binaryData.Count - i)
-                            buffer.AddRange(Enumerable.Repeat(Of Byte)(&HFF, (i + SPM_PAGESIZE) - binaryData.Count))
+                            buffer.AddRange(Enumerable.Repeat(Of Byte)(&HFF, (i + spmPageSize) - binaryData.Count))
 
                         Else
-                            buffer = binaryData.ToList.GetRange(i, SPM_PAGESIZE)
+                            buffer = binaryData.ToList.GetRange(i, spmPageSize)
                         End If
 
                         'Generate and insert CRC byte.
-                        crcByte = GenerateCRC(buffer.ToArray, SPM_PAGESIZE)
+                        crcByte = GenerateCRC(buffer.ToArray, spmPageSize)
                         buffer.Add(crcByte)
 
                         'Send page plus CRC byte.
