@@ -398,6 +398,22 @@ Public Class Main
 
         ElseIf flashMode.Checked Then
 
+            'Dim byte_val As Byte
+            'Dim HexData As String
+            'For Each c As Char In str
+
+            '    byte_val = Convert.ToByte(c)
+            '    HexData = Convert.ToString(byte_val, 16)
+
+            '    'Add the leading zero(0) if we didn't get a full byte.
+            '    If HexData.Length = 1 Then
+            '        HexData = "0" + HexData
+            '    End If
+
+            '    AddFormattedText(outputTextBox, "0x" + HexData.ToString.ToUpper, Color.Purple, FontStyle.Bold)
+            '    'AddFormattedText(outputTextBox, HexData.ToString.ToUpper, Color.Purple, FontStyle.Bold)
+            'Next
+
             'Save response.
             If mcuResponse = String.Empty Then
                 mcuResponse += str
@@ -652,7 +668,7 @@ Public Class Main
                         timer.Restart()
                         While mcuResponse = String.Empty
 
-                            If timer.ElapsedMilliseconds >= 1000 Then
+                            If timer.ElapsedMilliseconds >= 2000 Then
                                 Exit While
                             End If
 
@@ -668,7 +684,6 @@ Public Class Main
                             Case Chr(FLASH_OK) 'CRC OK.
                                 InsertFormattedTextAt(outputTextBox, "[ ", percentage.ToString + "% ]" + vbCrLf, Color.Blue, FontStyle.Bold)
                                 'AddFormattedText(outputTextBox, "[" + Date.Now + "] - PAGE " + Convert.ToInt32((i / SPM_PAGESIZE)).ToString + " OK -" + vbCrLf, Color.DarkSlateGray, FontStyle.Bold)
-                                Continue For
 
                             Case Chr(FLASH_NOK) 'CRC NOK.
                                 InsertFormattedTextAt(outputTextBox, "[ ", percentage.ToString + "%", Color.Red, FontStyle.Bold)
@@ -681,6 +696,8 @@ Public Class Main
                                 Throw New Exception("MCU timed out")
 
                         End Select
+
+                        Thread.Sleep(10) 'There needs to be a necessary delay in case the MCU is still in the process of writing the FLASH PAGE.
 
                     Next
 
