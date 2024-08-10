@@ -110,6 +110,8 @@ Public Class Main
             byteMode.Checked = True
         ElseIf My.Settings.Item("usrMOD") = "flash" Then
             flashMode.Checked = True
+        Else
+            stringMode.Checked = True
         End If
 
         If My.Settings.Item("usrAPP") <> "" Then
@@ -155,10 +157,6 @@ Public Class Main
                 .ScrollToCaret()
 
             End With
-
-            If flashStatus <> "init" AndAlso flashStatus <> "flash" Then
-                transmitData.Text = "FLASH"
-            End If
 
         End If
 
@@ -338,14 +336,13 @@ Public Class Main
 
             ElseIf type = "flash" Then
 
-                transmitData.Text = "Cancel"
+                flashStatus = "init"
 
                 'Begin FLASH process.
                 If Not flashThread.IsAlive OrElse flashThread.ThreadState = ThreadState.Aborted Then
                     flashThread = New Thread(AddressOf BeginFlash)
                     flashThread.Start(data)
                 End If
-                flashStatus = "init"
 
             End If
 
@@ -452,12 +449,29 @@ Public Class Main
         End
     End Sub
 
+    'MODES
+
+    Private Sub stringMode_CheckedChanged(sender As Object, e As EventArgs) Handles stringMode.CheckedChanged
+
+        If stringMode.Checked = True Then
+
+            'inputData.MaxLength = 2 'For Hex numbers.
+            'inputData.MaxLength = 2147483647
+
+            sendCapsCheck.Enabled = True
+
+            My.Settings.Item("usrMOD") = "string"
+            My.Settings.Save()
+
+        End If
+
+    End Sub
     Private Sub byteMode_CheckedChanged(sender As Object, e As EventArgs) Handles byteMode.CheckedChanged
 
         If byteMode.Checked = True Then
 
             'inputData.MaxLength = 2 'For Hex numbers.
-            inputData.MaxLength = 2147483647
+            'inputData.MaxLength = 2147483647
 
             sendCapsCheck.Enabled = False
             sendCapsCheck.Checked = False
@@ -466,9 +480,6 @@ Public Class Main
             My.Settings.Item("usrMOD") = "byte"
             My.Settings.Save()
 
-        Else
-            inputData.MaxLength = 2147483647 'Default value.
-            sendCapsCheck.Enabled = True
         End If
 
     End Sub
@@ -477,7 +488,7 @@ Public Class Main
 
         If flashMode.Checked = True Then
 
-            inputData.MaxLength = 2147483647
+            'inputData.MaxLength = 2147483647
 
             sendCapsCheck.Enabled = False
             sendCapsCheck.Checked = False
@@ -492,7 +503,6 @@ Public Class Main
             My.Settings.Save()
 
         Else
-            sendCapsCheck.Enabled = True
             appendList.Enabled = True
             inputData.Enabled = True
             transmitData.Text = "Send"
@@ -591,6 +601,8 @@ Public Class Main
 
                 If data = String.Empty Then
                     Throw New Exception("Empty file path")
+                ElseIf transmitData.InvokeRequired Then
+                    Invoke(Sub() transmitData.Text = "Cancel")
                 End If
 
                 Dim binaryData As Byte() = File.ReadAllBytes(data)
@@ -727,6 +739,10 @@ Public Class Main
                 If flashStatus <> "abort" Then
                     AddFormattedText(outputTextBox, vbCrLf + "************************************************************" + vbCrLf, Color.Black, FontStyle.Bold)
                     mcuResponse = String.Empty
+                End If
+
+                If transmitData.InvokeRequired Then
+                    Invoke(Sub() transmitData.Text = "FLASH")
                 End If
 
             End Try
