@@ -451,7 +451,7 @@ Public Class blockForm
 
             'Gravitational lensing for black holes.
             'myUniverse.GravityLensEffect(objList)
-            myUniverse.RealGravityLensEffect(objList)
+            myUniverse.SemiRealGravityLensEffect(objList)
 
         Catch ex As Exception
             Console.WriteLine(ex.ToString)
@@ -3474,7 +3474,6 @@ Public Class blockForm
         End If
 
     End Sub
-
     Private Sub UpdateUniverseGraphics(ByVal newMatrix As Drawing2D.Matrix)
 
         Dim universeGraphics As Graphics = myUniverse.getGraphics

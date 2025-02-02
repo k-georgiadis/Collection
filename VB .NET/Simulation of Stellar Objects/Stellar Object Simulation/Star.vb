@@ -205,7 +205,7 @@ Public Class Star
 
         'Create glow effect for the star.
         If Not PaintColor.Equals(Color.White) Then
-            GlowEffect()
+            GlowEffect(universeGraphics)
             starPen.Color = GlowColor
         End If
 
@@ -234,16 +234,16 @@ Public Class Star
 
             'universeGraphics.DrawClosedCurve(starPen, lensingPoints.ToArray, 0.8275, FillMode.Alternate)
             universeGraphics.DrawClosedCurve(starPen, lensPointList.ToArray, 0.8275, FillMode.Alternate)
-            starPen.Color = Color.Red
+            'starPen.Color = Color.Red
 
-            Dim distanceVector As New PointFD(CenterOfMass.X - lensingPoints(1).X, CenterOfMass.Y - lensingPoints(1).Y)
-            Dim v1 As New Vector(distanceVector.X, distanceVector.Y)
-            Dim v2 As New Vector(distanceVector.X, 0)
-            Dim vectorAngle = Vector.AngleBetween(v2, v1)
+            'Dim distanceVector As New PointFD(CenterOfMass.X - lensingPoints(1).X, CenterOfMass.Y - lensingPoints(1).Y)
+            'Dim v1 As New Vector(distanceVector.X, distanceVector.Y)
+            'Dim v2 As New Vector(distanceVector.X, 0)
+            'Dim vectorAngle = Vector.AngleBetween(v2, v1)
 
-            Dim g As Graphics
-            g.RotateTransform(vectorAngle)
-            g.DrawRectangle(Pens.White, New Rectangle)
+            'Dim g As Graphics
+            'g.RotateTransform(vectorAngle)
+            'g.DrawRectangle(Pens.White, New Rectangle)
 
         Else
             'Fill star.
@@ -289,72 +289,117 @@ Public Class Star
 
     End Sub
 
-    Private Sub GlowEffect()
+    Private Sub GlowEffect(ByVal universeGraphics As Graphics)
 
+        Dim glowAmount As Integer = 30 'How much we want to glow.
+        Static counter As Double = 0
         Static glowStatus As Integer = 1 '1 = glow, -1 = darken
-        Static offset() As Integer = {0, 0, 0}
-        Dim offsetIndex As Integer = -1
 
-        'Select available channel.
-        If offset(1) = 0 AndAlso PaintColor.R + offset(0) < 256 Then
-            offsetIndex = 0
-            GlowColor = Color.FromArgb(PaintColor.R + offset(0), PaintColor.G + offset(1), PaintColor.B + offset(2))
-
-            If GlowColor.R = 255 Then
-                offsetIndex = 1
-            End If
-
-        ElseIf offset(2) = 0 AndAlso PaintColor.G + offset(1) < 256 Then
-            offsetIndex = 1
-            GlowColor = Color.FromArgb(255, PaintColor.G + offset(1), PaintColor.B + offset(2))
-
-            If GlowColor.G = 255 Then
-                offsetIndex = 2
-            End If
-
-        ElseIf PaintColor.B + offset(2) < 256 Then
-            offsetIndex = 2
-            GlowColor = Color.FromArgb(255, 255, PaintColor.B + offset(2))
-
-            If GlowColor.B = 255 Then
-                offsetIndex = -1
-            End If
-
+        'Star brightness.
+        If PaintColor.R + counter < 255 Then
+            GlowColor = Color.FromArgb(PaintColor.R + counter, GlowColor.G, GlowColor.B)
+        End If
+        If PaintColor.G + counter < 255 Then
+            GlowColor = Color.FromArgb(GlowColor.R, PaintColor.G + counter, GlowColor.B)
+        End If
+        If PaintColor.B + counter < 255 Then
+            GlowColor = Color.FromArgb(GlowColor.R, GlowColor.G, PaintColor.B + counter)
         End If
 
-        If offsetIndex >= 0 Then
+        'Ambience glow effect.
+        Dim ambienceCenter As New PointF(CenterOfMass.X, CenterOfMass.Y)
+        Dim ambiencePen As New Pen(Color.FromArgb(counter, GlowColor))
+        universeGraphics.FillEllipse(ambiencePen.Brush,
+                                     ambienceCenter.X - Convert.ToSingle(1.5 * VisualSize),
+                                     ambienceCenter.Y - Convert.ToSingle(1.5 * VisualSize),
+                                     2 * Convert.ToSingle(1.5 * VisualSize), 2 * Convert.ToSingle(1.5 * VisualSize))
 
-            'Reverse glow effect if we reached the glow target.
-            If offset.Sum = 40 Then
-                glowStatus = -1
-            ElseIf offset.Sum = 0 AndAlso glowStatus = -1 Then 'Start over.
-                glowStatus = 1
-                Exit Sub
-            End If
+        counter += glowStatus / 5
 
-        ElseIf offsetIndex = -1 Then 'Maximum glow (white light) reached. Find out which channel was last incremented.
+        'If target reached, toggle action (glow/darken).
+        If counter <= 0 OrElse counter >= glowAmount Then
 
-            If PaintColor.B = 255 AndAlso GlowColor.B <> 255 Then
-                offsetIndex = 2
-            ElseIf PaintColor.G = 255 AndAlso GlowColor.G <> 255 Then
-                offsetIndex = 1
+            glowStatus *= -1
+
+            If glowStatus = -1 Then
+                counter = glowAmount
             Else
-                offsetIndex = 0
+                counter = 0
             End If
 
-            'Begin darkening.
-            glowStatus = -1
-
         End If
-
-        'Don't go below zero. Move to next channel.
-        If glowStatus = -1 And offset(offsetIndex) = 0 Then
-            offsetIndex -= 1 'The offset here is at least 1.
-        End If
-
-        'Adjust offset.
-        offset(offsetIndex) += 1 * glowStatus
 
     End Sub
+
+    'Old broken glow effect.
+
+    'Private Sub GlowEffect()
+
+    '    Static glowStatus As Integer = 1 '1 = glow, -1 = darken
+    '    Static offset() As Integer = {0, 0, 0}
+    '    Dim offsetIndex As Integer = -1
+    '    Dim glowAmount As Integer = 40 'How much we want to glow.
+
+    '    'Select available channel.
+    '    If offset(1) = 0 AndAlso PaintColor.R + offset(0) < 256 Then
+    '        offsetIndex = 0
+    '        GlowColor = Color.FromArgb(PaintColor.R + offset(0), PaintColor.G + offset(1), PaintColor.B + offset(2))
+
+    '        If GlowColor.R = 255 Then
+    '            offsetIndex = 1
+    '        End If
+
+    '    ElseIf offset(2) = 0 AndAlso PaintColor.G + offset(1) < 256 Then
+    '        offsetIndex = 1
+    '        GlowColor = Color.FromArgb(255, PaintColor.G + offset(1), PaintColor.B + offset(2))
+
+    '        If GlowColor.G = 255 Then
+    '            offsetIndex = 2
+    '        End If
+
+    '    ElseIf PaintColor.B + offset(2) < 256 Then
+    '        offsetIndex = 2
+    '        GlowColor = Color.FromArgb(255, 255, PaintColor.B + offset(2))
+
+    '        If GlowColor.B = 255 Then
+    '            offsetIndex = -1
+    '        End If
+
+    '    End If
+
+    '    If offsetIndex >= 0 Then
+
+    '        'Reverse glow effect if we reached the glow target.
+    '        If offset.Sum = glowAmount Then
+    '            glowStatus = -1
+    '        ElseIf offset.Sum = 0 AndAlso glowStatus = -1 Then 'Start over.
+    '            glowStatus = 1
+    '            Exit Sub
+    '        End If
+
+    '    ElseIf offsetIndex = -1 Then 'Maximum glow (white light) reached. Find out which channel was last incremented.
+
+    '        If PaintColor.B = 255 AndAlso GlowColor.B <> 255 Then
+    '            offsetIndex = 2
+    '        ElseIf PaintColor.G = 255 AndAlso GlowColor.G <> 255 Then
+    '            offsetIndex = 1
+    '        Else
+    '            offsetIndex = 0
+    '        End If
+
+    '        'Begin darkening.
+    '        glowStatus = -1
+
+    '    End If
+
+    '    'Don't go below zero. Move to next channel.
+    '    If glowStatus = -1 And offset(offsetIndex) = 0 Then
+    '        offsetIndex -= 1 'The offset here is at least 1.
+    '    End If
+
+    '    'Adjust offset.
+    '    offset(offsetIndex) += 1 * glowStatus
+
+    'End Sub
 
 End Class

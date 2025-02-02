@@ -451,6 +451,7 @@ Public Class Universe
 			obj.UniverseMatrix = universeMatrix.Clone
 			obj.InverseUniverseMatrix = universeMatrix.Clone
 			obj.InverseUniverseMatrix.Invert()
+
 		Next
 
 	End Sub
@@ -571,13 +572,17 @@ Public Class Universe
 
 	End Sub
 
-	Friend Sub RealGravityLensEffect(ByVal objList As List(Of StellarObject))
+	Friend Sub SemiRealGravityLensEffect(ByVal objList As List(Of StellarObject))
+
+		'The following effect only applies to one black hole per stellar object.
+		'Meaning that a star can only be lensed by one black hole and only one.
+		'But one black hole can lens multiple stars (1 -> N).
 
 		For Each bh In objList.FindAll(Function(x) x.Type = StellarObjectType.BlackHole)
 
 			'Assuming we already sorted the list by Z in ascending order.
-			'Take only the stellar objects behind the black hole and that are not already lensed.
-			For Each obj In objList.FindAll(Function(x) x.CenterOfMass.Z < bh.CenterOfMass.Z AndAlso Not x.IsLensed)
+			'Take only the stellar objects behind the black hole.
+			For Each obj In objList.FindAll(Function(x) x.CenterOfMass.Z < bh.CenterOfMass.Z)
 
 				'2D distance vector of two bodies.
 				Dim distanceVector As New PointFD(bh.CenterOfMass.X - obj.CenterOfMass.X, bh.CenterOfMass.Y - obj.CenterOfMass.Y)
@@ -662,8 +667,8 @@ Public Class Universe
 						'Instead, we choose a point on a circle (lensing circle) with center the star itself and radius that's proportional to the radius
 						'of the ellipse formed between the intersecting stellar objects.
 
-						'Because of the drawing limitations in .NET we must get the two (2) points on the line that passes through the center and is
-						'parallel to our intersection. Then we bent those points to complete the bending of the stellar object.
+						'Because of the drawing limitations in .NET, we can't bend a circle on four (4) points, so we must get the two (2) points on the line
+						'that passes through the center and is parallel to our intersection. Then we bent those points to complete the bending of the stellar object.
 
 						'We use trigonometry to calculate the parallel intersection points/vectors.
 						Dim xOffset As Double = Math.Sin(vectorAngle) * obj.VisualSize 'A = sin(a) * R
@@ -684,8 +689,8 @@ Public Class Universe
 						universeGraphics.DrawLine(New Pen(Color.LightBlue), parallelIntersectionPoint1, parallelIntersectionPoint2)
 
 						'Calculate and get deflection points.
-						Dim lensedParallelIntersectionPoint1 = GetDeflectionPoint(parallelVector1, bh, parallelVector1.DistanceFromPointF(c1))
-						Dim lensedParallelIntersectionPoint2 = GetDeflectionPoint(parallelVector2, bh, parallelVector2.DistanceFromPointF(c1))
+						'Dim lensedParallelIntersectionPoint1 = GetDeflectionPoint(parallelVector1, bh, parallelVector1.DistanceFromPointF(c1))
+						'Dim lensedParallelIntersectionPoint2 = GetDeflectionPoint(parallelVector2, bh, parallelVector2.DistanceFromPointF(c1))
 
 						'As explained earlier, we would use the above points point to accurately bend the light from the star.
 						'Instead, we use the lensing circle technique.
@@ -711,6 +716,7 @@ Public Class Universe
 						'								)
 						'universeGraphics.DrawLine(New Pen(Color.LightBlue), extendedLineIntersectPoint1, extendedLineIntersectPoint2)
 
+						'Create "lensing" circle.
 						Dim intersectingEllipseRadius As Double = obj.VisualSize + lensingRadius - distanceLength
 						Dim lensingCircleRadius As Double = obj.VisualSize - intersectingEllipseRadius * 0.2
 						Dim lensingCirclePoints As PointF() = LineIntersectionPointsWithCircle(lineEquationParams(0), lineEquationParams(1), c2,
@@ -754,13 +760,13 @@ Public Class Universe
 						'Add points to create the bent closed curve.
 						obj.lensingPoints.Add(parallelIntersectionPoint1)
 						'obj.lensingPoints.Add(fakeIntersectPoints(0))
-						obj.lensingPoints.Add(lensedParallelIntersectionPoint1)
+						'obj.lensingPoints.Add(lensedParallelIntersectionPoint1)
 						obj.lensingPoints.Add(bentClosestPoint)
-						obj.lensingPoints.Add(lensedParallelIntersectionPoint2)
+						'obj.lensingPoints.Add(lensedParallelIntersectionPoint2)
 						obj.lensingPoints.Add(parallelIntersectionPoint2)
 						'obj.lensingPoints.Add(fakeIntersectPoints(1))
 
-						'Find point on stellar object that is farthest to the singularity.
+						'Find point on stellar object that is farthest from the singularity.
 						Dim farthestPoint As PointF = lineIntersectPointsC2.ToList.Find(Function(p) p.X <> closestPoint.X)
 						obj.lensingPoints.Add(farthestPoint)
 
@@ -780,7 +786,7 @@ Public Class Universe
 					'Dim arcLength As Double = thetaZX * obj.VisualSize
 					'Dim orthgonalSideLen As Double = Math.Sqrt(obj.VisualSize * obj.VisualSize - (chordLength / 2) * (chordLength / 2))
 
-					If Not intersectPoints.Contains(New PointF(0, 0)) Then
+					If intersectPoints IsNot Nothing Then
 						universeGraphics.DrawLine(New Pen(Color.White),
 												New PointF(obj.CenterOfMass.X, obj.CenterOfMass.Y),
 												intersectPoints(0))
@@ -797,7 +803,7 @@ Public Class Universe
 					'If we were lensed before by this singularity but not anymore, remove lensing data from lists.
 					If obj.lensorSingularityList.Contains(bh) Then
 
-						obj.lensingPoints.RemoveAt(obj.lensorSingularityList.IndexOf(bh))
+						obj.lensingPoints.RemoveAt(obj.lensorSingularityList.IndexOf(bh) * 4)
 						obj.lensorSingularityList.Remove(bh)
 
 						'If no lensors left, clear flag and reset lensing points list.
@@ -911,13 +917,13 @@ Public Class Universe
 	'This function returns the intersection points (if any) of a line with a circle.
 	'The parameters passed are the line slope, constant, center of the circle and it's radius.
 
-	Private Function LineIntersectionPointsWithCircle(m, b, center, r) As PointF()
+	Private Function LineIntersectionPointsWithCircle(ByVal m As Double, ByVal b As Double, ByVal center As PointF, ByVal r As Double) As PointF()
 
 		'Solve quadratic formula after calculating the constants.
 		'qx^2 + wx + e = 0
 		Dim q As Double = m * m + 1
-		Dim w As Double = -2 * center.x + 2 * m * (b - center.y)
-		Dim e As Double = center.x * center.x + (b - center.y) * (b - center.y) - r * r
+		Dim w As Double = -2 * center.X + 2 * m * (b - center.Y)
+		Dim e As Double = center.X * center.X + (b - center.Y) * (b - center.Y) - r * r
 
 		Dim D As Double = w * w - 4 * q * e
 
@@ -943,7 +949,7 @@ Public Class Universe
 	'This function returns the intersection point (if any) between two (2) lines.
 	'The parameters passed are the line slopes and constants for both lines.
 
-	Private Function LineIntersectionPointsWithLine(m1, b1, m2, b2) As PointF
+	Private Function LineIntersectionPointsWithLine(ByVal m1 As Double, ByVal b1 As Double, ByVal m2 As Double, ByVal b2 As Double) As PointF
 
 		'If lines intersect, then y1 = y2 = y and x1 = x2 = x
 		'y = m1 * x + b1
@@ -1033,7 +1039,7 @@ Public Class Universe
 		'Get line equation from center and source.
 		Dim lineEquationParams As Double() = LineEquationFromTwoPoints(source.ToPointF, lens.CenterOfMass.ToPointF)
 
-		'Now find the intersection points with circle with center the lens center and radius the total deflection distance from the lens center in the XY plane.
+		'Now find the intersection points with circle of lens center and radius the total deflection distance from the lens center in the XY plane.
 		Dim lineIntersectPointsLens As PointF() = LineIntersectionPointsWithCircle(lineEquationParams(0), lineEquationParams(1),
 																				   lens.CenterOfMass.ToPointF, deflectedDistanceXY + distanceLength)
 
@@ -1050,6 +1056,7 @@ Public Class Universe
 		Dim lensRadiusLineZ As Double() = LineEquationFromTwoPoints(New PointF(lens.CenterOfMass.Z, lens.CenterOfMass.X), New PointF(lens.CenterOfMass.Z + lensingRadius, lens.CenterOfMass.X))
 		Dim newDeflectionPoint As PointF = LineIntersectionPointsWithLine(deflectedLineParams(0), deflectedLineParams(1), lensRadiusLineZ(0), lensRadiusLineZ(1))
 
+		'If lines intersect, bend it again.
 		If Not newDeflectionPoint.Equals(New PointF(0, 0)) AndAlso Math.Abs(newDeflectionPoint.X - lens.CenterOfMass.Z) <= lensingRadius Then
 
 			'If Math.Abs(newDeflectionPoint.X - lens.CenterOfMass.Z) <= 1.5 * lens.VisualSize Then
